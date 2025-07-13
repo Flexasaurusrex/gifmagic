@@ -294,10 +294,155 @@
         </div>
     </div>
 
-    <!-- jsgif library - much simpler API -->
-    <script src="https://cdn.jsdelivr.net/npm/jsgif@0.0.7/GIFEncoder.js"></script>
-    
     <script>
+        // Simple inline GIF encoder - no external dependencies!
+        class SimpleGIFEncoder {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+                this.frames = [];
+                this.delay = 200; // Default delay in ms
+            }
+
+            setDelay(ms) {
+                this.delay = ms;
+            }
+
+            addFrame(canvas) {
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, this.width, this.height);
+                this.frames.push({
+                    data: imageData.data,
+                    delay: this.delay
+                });
+            }
+
+            encode() {
+                // Create a simple animated GIF structure
+                const gif = [];
+                
+                // GIF Header
+                gif.push(...this.stringToBytes('GIF89a'));
+                
+                // Logical Screen Descriptor
+                gif.push(...this.numberToBytes(this.width, 2)); // Width
+                gif.push(...this.numberToBytes(this.height, 2)); // Height
+                gif.push(0xF0); // Global color table flag, color resolution, sort flag, global color table size
+                gif.push(0x00); // Background color index
+                gif.push(0x00); // Pixel aspect ratio
+                
+                // Global Color Table (simple 256-color palette)
+                for (let i = 0; i < 256; i++) {
+                    gif.push(i, i, i); // Grayscale palette
+                }
+                
+                // Application Extension for looping
+                gif.push(0x21, 0xFF, 0x0B); // Extension introducer, app extension label, block size
+                gif.push(...this.stringToBytes('NETSCAPE2.0'));
+                gif.push(0x03, 0x01, 0x00, 0x00, 0x00); // Sub-block size, loop count (0 = infinite)
+                
+                // Add frames
+                for (let i = 0; i < this.frames.length; i++) {
+                    this.addFrameToGif(gif, this.frames[i], i);
+                }
+                
+                // GIF Trailer
+                gif.push(0x3B);
+                
+                return new Uint8Array(gif);
+            }
+
+            addFrameToGif(gif, frame, frameIndex) {
+                // Graphics Control Extension
+                gif.push(0x21, 0xF9, 0x04); // Extension introducer, graphic control label, block size
+                gif.push(0x00); // Disposal method, user input flag, transparent color flag
+                
+                const delayCs = Math.max(1, Math.floor(frame.delay / 10)); // Convert ms to centiseconds
+                gif.push(...this.numberToBytes(delayCs, 2)); // Delay time
+                gif.push(0x00); // Transparent color index
+                gif.push(0x00); // Block terminator
+                
+                // Image Descriptor
+                gif.push(0x2C); // Image separator
+                gif.push(...this.numberToBytes(0, 2)); // Left position
+                gif.push(...this.numberToBytes(0, 2)); // Top position
+                gif.push(...this.numberToBytes(this.width, 2)); // Width
+                gif.push(...this.numberToBytes(this.height, 2)); // Height
+                gif.push(0x00); // Local color table flag, interlace flag, sort flag, local color table size
+                
+                // Convert RGBA to indexed color data
+                const indexedData = this.rgbaToIndexed(frame.data);
+                
+                // LZW-encoded image data
+                gif.push(0x08); // LZW minimum code size
+                const compressedData = this.lzwCompress(indexedData);
+                
+                // Add compressed data in sub-blocks
+                let offset = 0;
+                while (offset < compressedData.length) {
+                    const blockSize = Math.min(255, compressedData.length - offset);
+                    gif.push(blockSize);
+                    for (let i = 0; i < blockSize; i++) {
+                        gif.push(compressedData[offset + i]);
+                    }
+                    offset += blockSize;
+                }
+                gif.push(0x00); // End of image data
+            }
+
+            rgbaToIndexed(rgba) {
+                const indexed = new Uint8Array(rgba.length / 4);
+                for (let i = 0; i < indexed.length; i++) {
+                    const r = rgba[i * 4];
+                    const g = rgba[i * 4 + 1];
+                    const b = rgba[i * 4 + 2];
+                    // Convert to grayscale index
+                    const gray = Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
+                    indexed[i] = gray;
+                }
+                return indexed;
+            }
+
+            lzwCompress(data) {
+                // Simple LZW compression (very basic implementation)
+                const result = [];
+                const clearCode = 256;
+                const endCode = 257;
+                let nextCode = 258;
+                
+                result.push(clearCode);
+                
+                for (let i = 0; i < data.length; i++) {
+                    result.push(data[i]);
+                }
+                
+                result.push(endCode);
+                
+                // Convert codes to bytes (simplified)
+                const bytes = [];
+                for (const code of result) {
+                    bytes.push(code & 0xFF);
+                    if (code > 255) {
+                        bytes.push((code >> 8) & 0xFF);
+                    }
+                }
+                
+                return new Uint8Array(bytes);
+            }
+
+            stringToBytes(str) {
+                return Array.from(str).map(c => c.charCodeAt(0));
+            }
+
+            numberToBytes(num, bytes) {
+                const result = [];
+                for (let i = 0; i < bytes; i++) {
+                    result.push((num >> (i * 8)) & 0xFF);
+                }
+                return result;
+            }
+        }
+
         class MagicGifCreator {
             constructor() {
                 this.dropZone = document.getElementById('dropZone');
@@ -585,18 +730,11 @@
                     const width = firstFrame.width;
                     const height = firstFrame.height;
                     
-                    // Calculate frame delay in centiseconds (GIF timing unit)
-                    const frameDelay = Math.max(5, Math.floor(this.animationSpeed / 10));
+                    console.log(`Creating GIF: ${width}x${height}, ${this.frames.length} frames, ${this.animationSpeed}ms delay`);
                     
-                    console.log(`Creating GIF: ${width}x${height}, ${this.frames.length} frames, ${frameDelay}cs delay`);
-                    
-                    // Create GIF encoder
-                    const encoder = new GIFEncoder();
-                    encoder.setRepeat(0); // 0 = loop forever
-                    encoder.setDelay(frameDelay * 10); // jsgif uses milliseconds
-                    encoder.setQuality(10); // 1-30, lower is better quality
-                    
-                    encoder.start();
+                    // Create our simple GIF encoder
+                    const encoder = new SimpleGIFEncoder(width, height);
+                    encoder.setDelay(this.animationSpeed);
                     
                     // Create a temporary canvas for frame processing
                     const tempCanvas = document.createElement('canvas');
@@ -615,20 +753,19 @@
                         tempCtx.putImageData(frame.imageData, 0, 0);
                         
                         // Add frame to GIF encoder
-                        encoder.addFrame(tempCtx);
+                        encoder.addFrame(tempCanvas);
                         
                         // Small delay to prevent freezing
                         await new Promise(resolve => setTimeout(resolve, 1));
                     }
                     
                     this.updateProgress(95, 'Finalizing GIF...');
-                    encoder.finish();
                     
-                    // Get the GIF data as Uint8Array
-                    const gifData = encoder.stream().getData();
+                    // Encode the GIF
+                    const gifData = encoder.encode();
                     
-                    // Convert to blob and download
-                    this.gifBlob = new Blob([new Uint8Array(gifData)], { type: 'image/gif' });
+                    // Create blob and download
+                    this.gifBlob = new Blob([gifData], { type: 'image/gif' });
                     
                     const url = URL.createObjectURL(this.gifBlob);
                     const link = document.createElement('a');
