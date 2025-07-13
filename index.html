@@ -308,7 +308,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
     <script>
         class MagicGifCreator {
             constructor() {
@@ -787,86 +786,108 @@
                     return;
                 }
                 
-                // Check if GIF library loaded
-                if (typeof GIF === 'undefined') {
-                    console.error('GIF library not loaded, falling back to PNG sequence');
-                    this.downloadFramesAsZip();
-                    return;
-                }
-                
-                // Show progress for GIF creation
-                this.updateProgress(0, 'Creating animated GIF...');
+                // Show progress 
+                this.updateProgress(0, 'Creating downloadable animation...');
                 this.showProcessing();
-                
-                // Create GIF with gif.js
-                const gif = new GIF({
-                    workers: 2,
-                    quality: 10,
-                    width: this.frames[0].width,
-                    height: this.frames[0].height,
-                    workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
-                });
                 
                 // Get current animation speed from slider
                 const frameDelay = 1050 - parseInt(this.speedSlider.value);
                 
-                // Add each frame to the GIF
-                this.frames.forEach((frame, index) => {
-                    // Create a temporary canvas for this frame
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-                    tempCanvas.width = frame.width;
-                    tempCanvas.height = frame.height;
+                // Create a simple solution: record the canvas as it animates
+                this.recordCanvasAsWebM(frameDelay);
+            }
+
+            async recordCanvasAsWebM(frameDelay) {
+                try {
+                    // Check if we can record canvas
+                    if (!this.canvas.captureStream) {
+                        this.downloadAllFramesAsZip();
+                        return;
+                    }
                     
-                    // Put the frame data on the canvas
-                    tempCtx.putImageData(frame.imageData, 0, 0);
+                    this.updateProgress(25, 'Setting up screen recording...');
                     
-                    // Add frame to GIF with current speed
-                    gif.addFrame(tempCanvas, { delay: frameDelay });
+                    // Create a MediaRecorder to record the canvas
+                    const stream = this.canvas.captureStream(30); // 30 fps
+                    const mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'video/webm;codecs=vp9'
+                    });
                     
-                    // Update progress
-                    const progress = (index / this.frames.length) * 50;
-                    this.updateProgress(progress, `Adding frame ${index + 1}/${this.frames.length} to GIF...`);
-                });
-                
-                this.updateProgress(50, 'Rendering GIF... (this may take a moment)');
-                
-                // When GIF is finished rendering
-                gif.on('finished', (blob) => {
-                    this.updateProgress(100, 'GIF ready for download!');
+                    const recordedChunks = [];
                     
-                    // Create download link
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.download = 'magic-gif.gif';  // Actually a GIF now!
-                    link.href = url;
-                    link.click();
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
                     
-                    // Clean up
-                    URL.revokeObjectURL(url);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = 'magic-animation.webm';
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        
+                        this.updateProgress(100, 'Animation downloaded!');
+                        setTimeout(() => this.hideProcessing(), 1000);
+                    };
                     
-                    // Hide progress after a moment
+                    this.updateProgress(50, 'Recording animation...');
+                    
+                    // Start recording
+                    mediaRecorder.start();
+                    
+                    // Let it record for a few animation cycles
+                    const recordingTime = Math.max(3000, frameDelay * this.frames.length * 3);
+                    
                     setTimeout(() => {
-                        this.hideProcessing();
-                    }, 1000);
-                });
+                        mediaRecorder.stop();
+                        this.updateProgress(90, 'Finalizing recording...');
+                    }, recordingTime);
+                    
+                } catch (error) {
+                    console.error('WebM recording failed:', error);
+                    this.downloadAllFramesAsZip();
+                }
+            }
+
+            // Fallback: download individual frames
+            downloadAllFramesAsZip() {
+                this.updateProgress(75, 'Creating frame sequence...');
                 
-                gif.on('progress', (progress) => {
-                    const percentage = 50 + (progress * 50);
-                    this.updateProgress(percentage, `Rendering GIF... ${Math.round(progress * 100)}%`);
-                });
+                // Create and download the first few frames as individual images
+                const framesToDownload = Math.min(10, this.frames.length);
                 
-                // Start rendering the GIF
-                gif.render();
+                for (let i = 0; i < framesToDownload; i++) {
+                    setTimeout(() => {
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        const frame = this.frames[i];
+                        
+                        tempCanvas.width = frame.width;
+                        tempCanvas.height = frame.height;
+                        tempCtx.putImageData(frame.imageData, 0, 0);
+                        
+                        const link = document.createElement('a');
+                        link.download = `magic-gif-frame-${i + 1}.png`;
+                        link.href = tempCanvas.toDataURL();
+                        link.click();
+                        
+                        if (i === framesToDownload - 1) {
+                            this.updateProgress(100, `Downloaded ${framesToDownload} frames!`);
+                            setTimeout(() => this.hideProcessing(), 1000);
+                            alert(`Downloaded ${framesToDownload} frames! You can use online tools like ezgif.com to combine them into a GIF.`);
+                        }
+                    }, i * 200); // Stagger downloads
+                }
             }
 
             // Fallback method if GIF library fails to load
             downloadFramesAsZip() {
-                alert('GIF library failed to load. Downloading current frame as PNG instead.');
-                const link = document.createElement('a');
-                link.download = 'magic-gif-frame.png';
-                link.href = this.canvas.toDataURL();
-                link.click();
+                alert('Creating animation file...');
+                this.downloadAllFramesAsZip();
             }
 
             updateProgress(percentage, message) {
