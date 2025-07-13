@@ -437,13 +437,13 @@
 
             async extractFramesAndCreateGif(video, fileName) {
                 const duration = video.duration;
-                const maxFrames = 20; // Fewer frames for more reliable processing
+                const maxFrames = 20;
                 const frameInterval = Math.max(0.5, duration / maxFrames);
                 const totalFrames = Math.min(maxFrames, Math.floor(duration / frameInterval));
                 
                 this.updateProgress(25, `Extracting ${totalFrames} frames...`);
                 
-                const maxDimension = 400; // Smaller for faster processing
+                const maxDimension = 400;
                 let canvasWidth = video.videoWidth;
                 let canvasHeight = video.videoHeight;
                 
@@ -459,6 +459,7 @@
                 canvas.height = canvasHeight;
                 
                 const frames = [];
+                this.frames = []; // Reset frames array
                 
                 for (let i = 0; i < totalFrames; i++) {
                     const currentTime = (i * frameInterval);
@@ -481,7 +482,14 @@
                     
                     ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
                     const imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+                    
+                    // Store frames in both arrays for compatibility
                     frames.push(imageData);
+                    this.frames.push({
+                        imageData: imageData,
+                        width: canvasWidth,
+                        height: canvasHeight
+                    });
                     
                     const progress = 25 + ((i + 1) / totalFrames) * 50;
                     this.updateProgress(progress, `Extracting frame ${i + 1}/${totalFrames}...`);
@@ -489,9 +497,19 @@
                 
                 URL.revokeObjectURL(video.src);
                 
-                // Create actual GIF from frames
+                console.log(`Extracted ${frames.length} frames`);
+                
+                if (frames.length === 0) {
+                    throw new Error('No frames extracted from video');
+                }
+                
+                // Create GIF from frames
                 this.updateProgress(80, 'Creating GIF file...');
                 await this.createGifFromFrames(frames, canvasWidth, canvasHeight);
+                
+                // Setup preview animation
+                this.setupCanvas();
+                this.startAnimation();
                 
                 this.updateProgress(100, 'GIF ready!');
                 this.showResult();
@@ -499,97 +517,115 @@
             }
 
             async createGifFromFrames(frames, width, height) {
+                console.log('Creating GIF from', frames.length, 'frames, size:', width, 'x', height);
+                
+                if (!frames || frames.length === 0) {
+                    throw new Error('No frames provided for GIF creation');
+                }
+                
                 // Simple but working GIF creation
                 const delay = Math.max(10, Math.floor((1050 - parseInt(this.speedSlider.value)) / 10));
+                console.log('Using delay:', delay);
                 
                 // Create a super simple GIF
                 const gifData = [];
                 
-                // GIF signature
-                gifData.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61); // "GIF89a"
-                
-                // Screen descriptor
-                gifData.push(width & 0xFF, (width >> 8) & 0xFF);
-                gifData.push(height & 0xFF, (height >> 8) & 0xFF);
-                gifData.push(0xF0, 0x00, 0x00); // Global color table, background, aspect ratio
-                
-                // Global color table (grayscale)
-                for (let i = 0; i < 256; i++) {
-                    gifData.push(i, i, i);
-                }
-                
-                // Application extension for looping
-                gifData.push(0x21, 0xFF, 0x0B);
-                gifData.push(0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30);
-                gifData.push(0x03, 0x01, 0x00, 0x00, 0x00);
-                
-                // Add frames
-                for (let f = 0; f < frames.length; f++) {
-                    // Graphics control extension
-                    gifData.push(0x21, 0xF9, 0x04, 0x00);
-                    gifData.push(delay & 0xFF, (delay >> 8) & 0xFF);
-                    gifData.push(0x00, 0x00);
+                try {
+                    // GIF signature
+                    gifData.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61); // "GIF89a"
                     
-                    // Image descriptor
-                    gifData.push(0x2C, 0x00, 0x00, 0x00, 0x00);
+                    // Screen descriptor
                     gifData.push(width & 0xFF, (width >> 8) & 0xFF);
                     gifData.push(height & 0xFF, (height >> 8) & 0xFF);
-                    gifData.push(0x00);
+                    gifData.push(0xF0, 0x00, 0x00); // Global color table, background, aspect ratio
                     
-                    // Convert frame to indices
-                    const frameData = frames[f].data;
-                    const indices = [];
-                    for (let i = 0; i < frameData.length; i += 4) {
-                        const gray = Math.floor(0.299 * frameData[i] + 0.587 * frameData[i + 1] + 0.114 * frameData[i + 2]);
-                        indices.push(gray);
+                    // Global color table (grayscale)
+                    for (let i = 0; i < 256; i++) {
+                        gifData.push(i, i, i);
                     }
                     
-                    // LZW data (simplified)
-                    gifData.push(0x08); // LZW minimum code size
+                    // Application extension for looping
+                    gifData.push(0x21, 0xFF, 0x0B);
+                    gifData.push(0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30);
+                    gifData.push(0x03, 0x01, 0x00, 0x00, 0x00);
                     
-                    let pos = 0;
-                    while (pos < indices.length) {
-                        const chunkSize = Math.min(255, indices.length - pos);
-                        gifData.push(chunkSize);
-                        for (let i = 0; i < chunkSize; i++) {
-                            gifData.push(indices[pos + i]);
+                    // Add frames
+                    for (let f = 0; f < frames.length; f++) {
+                        // Graphics control extension
+                        gifData.push(0x21, 0xF9, 0x04, 0x00);
+                        gifData.push(delay & 0xFF, (delay >> 8) & 0xFF);
+                        gifData.push(0x00, 0x00);
+                        
+                        // Image descriptor
+                        gifData.push(0x2C, 0x00, 0x00, 0x00, 0x00);
+                        gifData.push(width & 0xFF, (width >> 8) & 0xFF);
+                        gifData.push(height & 0xFF, (height >> 8) & 0xFF);
+                        gifData.push(0x00);
+                        
+                        // Convert frame to indices
+                        const frameData = frames[f].data;
+                        const indices = [];
+                        for (let i = 0; i < frameData.length; i += 4) {
+                            const gray = Math.floor(0.299 * frameData[i] + 0.587 * frameData[i + 1] + 0.114 * frameData[i + 2]);
+                            indices.push(gray);
                         }
-                        pos += chunkSize;
+                        
+                        // LZW data (simplified)
+                        gifData.push(0x08); // LZW minimum code size
+                        
+                        let pos = 0;
+                        while (pos < indices.length) {
+                            const chunkSize = Math.min(255, indices.length - pos);
+                            gifData.push(chunkSize);
+                            for (let i = 0; i < chunkSize; i++) {
+                                gifData.push(indices[pos + i]);
+                            }
+                            pos += chunkSize;
+                        }
+                        gifData.push(0x00); // End of image data
                     }
-                    gifData.push(0x00); // End of image data
+                    
+                    // Trailer
+                    gifData.push(0x3B);
+                    
+                    // Create blob
+                    this.generatedGifBlob = new Blob([new Uint8Array(gifData)], { type: 'image/gif' });
+                    console.log('GIF blob created, size:', this.generatedGifBlob.size, 'bytes');
+                    
+                    // Show preview of first frame
+                    const url = URL.createObjectURL(this.generatedGifBlob);
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log('GIF preview loaded successfully');
+                        this.canvas.width = width;
+                        this.canvas.height = height;
+                        
+                        // Show first frame as preview
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCanvas.width = width;
+                        tempCanvas.height = height;
+                        tempCtx.putImageData(frames[0], 0, 0);
+                        this.ctx.drawImage(tempCanvas, 0, 0);
+                        
+                        // Scale for display
+                        const maxWidth = 600;
+                        const maxHeight = 400;
+                        const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+                        this.canvas.style.width = (width * scale) + 'px';
+                        this.canvas.style.height = (height * scale) + 'px';
+                        
+                        URL.revokeObjectURL(url);
+                    };
+                    img.onerror = (e) => {
+                        console.error('Failed to load GIF preview:', e);
+                    };
+                    img.src = url;
+                    
+                } catch (error) {
+                    console.error('Error in GIF creation:', error);
+                    throw error;
                 }
-                
-                // Trailer
-                gifData.push(0x3B);
-                
-                // Create blob
-                this.generatedGifBlob = new Blob([new Uint8Array(gifData)], { type: 'image/gif' });
-                
-                // Show preview
-                const url = URL.createObjectURL(this.generatedGifBlob);
-                const img = new Image();
-                img.onload = () => {
-                    this.canvas.width = width;
-                    this.canvas.height = height;
-                    
-                    // Show first frame as preview
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = width;
-                    tempCanvas.height = height;
-                    tempCtx.putImageData(frames[0], 0, 0);
-                    this.ctx.drawImage(tempCanvas, 0, 0);
-                    
-                    // Scale for display
-                    const maxWidth = 600;
-                    const maxHeight = 400;
-                    const scale = Math.min(maxWidth / width, maxHeight / height, 1);
-                    this.canvas.style.width = (width * scale) + 'px';
-                    this.canvas.style.height = (height * scale) + 'px';
-                    
-                    URL.revokeObjectURL(url);
-                };
-                img.src = url;
             }
 
             async processVideoWithFFmpeg(videoFile) {
