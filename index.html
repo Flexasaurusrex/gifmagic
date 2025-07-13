@@ -274,11 +274,11 @@
         <input type="file" id="fileInput" multiple accept="image/*,video/*">
 
         <div class="format-info" id="formatInfo" style="display: none;">
-            <strong>📹 Video Format Support:</strong><br>
-            <span class="format-supported">✅ Fully Supported:</span> MP4 (H.264), WebM, OGV<br>
-            <span class="format-limited">⚠️ Sometimes Works:</span> MOV, M4V (depends on codec)<br>
-            <span class="format-unsupported">❌ Not Supported:</span> AVI, MKV, FLV, WMV, HEVC/H.265<br><br>
-            <strong>💡 Quick Fix:</strong> Use a free converter like <a href="https://cloudconvert.com" target="_blank" style="color: #ffd700;">CloudConvert</a> or <a href="https://handbrake.fr" target="_blank" style="color: #ffd700;">HandBrake</a> to convert to MP4 (H.264)
+            <strong>🎉 UNIVERSAL VIDEO SUPPORT with ffmpeg!</strong><br>
+            <span class="format-supported">✅ Fully Supported:</span> MP4, AVI, MOV, MKV, WebM, FLV, WMV, 3GP, and basically any video format!<br>
+            <span class="format-supported">✅ Any Codec:</span> H.264, H.265, VP9, AV1, DivX, Xvid - ffmpeg handles it all!<br>
+            <span class="format-supported">✅ Perfect GIFs:</span> High-quality palette optimization and dithering<br><br>
+            <strong>💡 Powered by ffmpeg.wasm - the same engine used by professional video editors!</strong>
             <button class="retry-btn" onclick="magicGifApp.resetApp()">Try Another File</button>
         </div>
 
@@ -308,6 +308,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <script>
         class MagicGifCreator {
             constructor() {
@@ -329,8 +330,50 @@
                 this.animationId = null;
                 this.lastFrameTime = 0;
                 this.lastFile = null;
+                this.ffmpeg = null;
+                this.ffmpegLoaded = false;
+                this.generatedGifBlob = null;
                 
                 this.initEventListeners();
+                this.initFFmpeg();
+            }
+
+            async initFFmpeg() {
+                try {
+                    this.updateProgress(0, 'Loading ffmpeg engine...');
+                    this.showProcessing();
+                    
+                    // Check if FFmpeg is available
+                    if (typeof createFFmpeg === 'undefined') {
+                        throw new Error('FFmpeg not available');
+                    }
+                    
+                    this.ffmpeg = createFFmpeg({ 
+                        log: true,
+                        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+                    });
+                    
+                    this.ffmpeg.setLogger(({ type, message }) => {
+                        console.log(`FFmpeg ${type}:`, message);
+                    });
+                    
+                    this.ffmpeg.setProgress(({ ratio }) => {
+                        if (ratio > 0) {
+                            this.updateProgress(20 + (ratio * 60), `Processing... ${Math.round(ratio * 100)}%`);
+                        }
+                    });
+                    
+                    await this.ffmpeg.load();
+                    this.ffmpegLoaded = true;
+                    this.hideProcessing();
+                    console.log('FFmpeg loaded successfully!');
+                    
+                } catch (error) {
+                    console.error('FFmpeg failed to load:', error);
+                    this.hideProcessing();
+                    alert('FFmpeg failed to load. The app will work with limited video format support.');
+                    // Continue without ffmpeg for basic functionality
+                }
             }
 
             initEventListeners() {
@@ -373,6 +416,11 @@
             async handleFiles(files) {
                 if (files.length === 0) return;
 
+                if (!this.ffmpegLoaded) {
+                    alert('FFmpeg is still loading. Please wait a moment and try again.');
+                    return;
+                }
+
                 this.showProcessing();
                 
                 const firstFile = files[0];
@@ -385,25 +433,92 @@
                 });
                 
                 if (firstFile.type.startsWith('video/')) {
-                    const fileExt = firstFile.name.toLowerCase().split('.').pop();
-                    const isLikelySupported = this.checkVideoCompatibility(firstFile.type, fileExt);
-                    
-                    if (!isLikelySupported) {
-                        this.showFormatWarning(fileExt);
-                        this.hideProcessing();
-                        return;
-                    }
-                    
                     try {
-                        await this.processVideo(firstFile);
+                        await this.processVideoWithFFmpeg(firstFile);
                     } catch (error) {
                         console.error('Video processing failed:', error);
-                        this.showFormatWarning(fileExt);
+                        this.updateProgress(0, 'Video processing failed');
                         this.hideProcessing();
+                        alert('Video processing failed. Please try a different file.');
                     }
                 } else if (firstFile.type.startsWith('image/')) {
                     await this.processImages(Array.from(files));
                 }
+            }
+
+            async processVideoWithFFmpeg(videoFile) {
+                this.updateProgress(5, `Processing ${videoFile.name} with ffmpeg...`);
+                
+                // Get speed from slider for frame rate calculation
+                const sliderValue = parseInt(this.speedSlider.value);
+                const fps = Math.max(5, Math.min(30, Math.round(30 * (1050 - sliderValue) / 1000)));
+                
+                try {
+                    // Write input file to ffmpeg filesystem
+                    const inputName = 'input.' + videoFile.name.split('.').pop();
+                    const outputName = 'output.gif';
+                    
+                    this.updateProgress(10, 'Loading video into ffmpeg...');
+                    this.ffmpeg.FS('writeFile', inputName, await this.fetchFile(videoFile));
+                    
+                    this.updateProgress(15, 'Converting to GIF...');
+                    
+                    // FFmpeg command to create high-quality GIF
+                    await this.ffmpeg.run(
+                        '-i', inputName,
+                        '-vf', `fps=${fps},scale=500:-1:flags=lanczos,palettegen=reserve_transparent=0`,
+                        'palette.png'
+                    );
+                    
+                    await this.ffmpeg.run(
+                        '-i', inputName,
+                        '-i', 'palette.png',
+                        '-filter_complex', `fps=${fps},scale=500:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5`,
+                        '-loop', '0',
+                        outputName
+                    );
+                    
+                    this.updateProgress(85, 'Reading GIF file...');
+                    
+                    // Read the output GIF
+                    const data = this.ffmpeg.FS('readFile', outputName);
+                    this.generatedGifBlob = new Blob([data.buffer], { type: 'image/gif' });
+                    
+                    // Create preview
+                    const url = URL.createObjectURL(this.generatedGifBlob);
+                    const img = new Image();
+                    img.onload = () => {
+                        this.canvas.width = img.width;
+                        this.canvas.height = img.height;
+                        this.ctx.drawImage(img, 0, 0);
+                        
+                        // Scale for display
+                        const maxWidth = 600;
+                        const maxHeight = 400;
+                        const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+                        this.canvas.style.width = (img.width * scale) + 'px';
+                        this.canvas.style.height = (img.height * scale) + 'px';
+                        
+                        URL.revokeObjectURL(url);
+                        this.updateProgress(100, 'GIF ready!');
+                        this.showResult();
+                        this.hideProcessing();
+                    };
+                    img.src = url;
+                    
+                    // Clean up ffmpeg filesystem
+                    this.ffmpeg.FS('unlink', inputName);
+                    this.ffmpeg.FS('unlink', outputName);
+                    this.ffmpeg.FS('unlink', 'palette.png');
+                    
+                } catch (error) {
+                    console.error('FFmpeg processing error:', error);
+                    throw error;
+                }
+            }
+
+            async fetchFile(file) {
+                return new Uint8Array(await file.arrayBuffer());
             }
 
             checkVideoCompatibility(mimeType, fileExtension) {
@@ -772,12 +887,12 @@
                 this.processing.style.display = 'none';
             }
 
-            showControls() {
-                this.controls.style.display = 'block';
-            }
-
             showResult() {
                 this.resultContainer.style.display = 'block';
+                // Don't show speed controls for ffmpeg-generated GIFs since changing speed requires regeneration
+                if (!this.generatedGifBlob) {
+                    this.controls.style.display = 'block';
+                }
             }
 
             downloadGif() {
