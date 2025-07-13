@@ -445,11 +445,12 @@
         </div>
     </div>
 
-    <!-- Load ffmpeg.wasm from CDN -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/ffmpeg.js" type="module"></script>
-    <script type="module">
-        import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/ffmpeg.js';
-        import { fetchFile, toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/util.js';
+    <!-- Load ffmpeg.wasm from CDN using UMD (no CORS issues) -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js"></script>
+    <script>
+        const { FFmpeg } = FFmpegWASM;
+        const { fetchFile, toBlobURL } = FFmpegUtil;
 
         class WebMToGIFConverter {
             constructor() {
@@ -496,8 +497,8 @@
 
                     this.ffmpegStatus.textContent = '📦 Loading ffmpeg core files...';
                     
-                    // Load with proper CORS headers using toBlobURL
-                    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+                    // Load with proper CDN URLs (UMD versions for better compatibility)
+                    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
                     
                     await this.ffmpeg.load({
                         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
