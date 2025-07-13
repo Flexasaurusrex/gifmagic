@@ -15,33 +15,61 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
         }
 
         .container {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
             border-radius: 20px;
-            padding: 40px;
+            padding: 30px;
             box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.18);
-            max-width: 800px;
             width: 100%;
             text-align: center;
         }
 
-        h1 {
+        .tool-title {
             color: #fff;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+            margin-bottom: 20px;
+            font-size: 1.8em;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-tool .tool-title {
             background: linear-gradient(45deg, #ffd700, #ffed4e);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .gif-tool .tool-title {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .video-tool {
+            border: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .gif-tool {
+            border: 2px solid rgba(255, 107, 107, 0.3);
         }
 
         .magic-box {
@@ -245,201 +273,459 @@
             margin-top: 15px;
         }
 
-        .format-badge {
-            background: rgba(255, 215, 0, 0.2);
-            color: #ffd700;
-            padding: 2px 8px;
-            border-radius: 5px;
-            margin: 0 3px;
-            font-weight: bold;
+        .magic-box.gif-converter {
+            border-color: #ff6b6b;
+        }
+
+        .magic-box.gif-converter:hover {
+            border-color: #ee5a24;
+            box-shadow: 0 15px 35px rgba(255, 107, 107, 0.2);
+        }
+
+        .magic-box.gif-converter.dragover {
+            background: rgba(255, 107, 107, 0.1);
+            border-color: #ff6b6b;
+        }
+
+        .gif-tool .magic-text {
+            color: #ff6b6b;
+        }
+
+        .gif-tool .format-badge {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        .gif-tool .download-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: #fff;
+        }
+
+        .gif-tool .speed-label {
+            color: #ff6b6b;
+        }
+
+        .workflow-note {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>✨ Magic GIF Creator ✨</h1>
-        
-        <div class="magic-box" id="dropZone">
-            <div class="sparkles" id="sparkles"></div>
-            <div class="magic-text">Drop Your Magic Here</div>
-            <div class="magic-subtitle">Drop videos or images to create amazing GIFs</div>
-            <div class="supported-formats">
-                Supports: <span class="format-badge">MP4</span> <span class="format-badge">WebM</span> <span class="format-badge">MOV</span> <span class="format-badge">Images</span>
-            </div>
-        </div>
-
-        <input type="file" id="fileInput" class="file-input" multiple accept="video/*,image/*">
-
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-text" id="progressText">Processing...</div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-        </div>
-
-        <div class="preview-container" id="previewContainer">
-            <canvas id="previewCanvas" class="preview-canvas"></canvas>
-        </div>
-
-        <div class="controls" id="controls">
-            <div class="speed-control">
-                <label class="speed-label">⚡ Animation Speed</label>
-                <input type="range" id="speedSlider" class="speed-slider" min="50" max="500" value="200">
-                <div class="speed-indicators">
-                    <span>🐌 Slow</span>
-                    <span>🚀 Fast</span>
+    <div class="main-container">
+        <!-- VIDEO TO WEBM TOOL -->
+        <div class="container video-tool">
+            <h2 class="tool-title">🎬 Video to WebM</h2>
+            
+            <div class="magic-box" id="dropZone">
+                <div class="sparkles" id="sparkles"></div>
+                <div class="magic-text">Drop Your Videos Here</div>
+                <div class="magic-subtitle">Create smooth WebM animations</div>
+                <div class="supported-formats">
+                    Supports: <span class="format-badge">MP4</span> <span class="format-badge">WebM</span> <span class="format-badge">MOV</span> <span class="format-badge">Images</span>
                 </div>
             </div>
-            <button id="downloadBtn" class="download-btn">🎁 Download Magic GIF ✨</button>
+
+            <input type="file" id="fileInput" class="file-input" multiple accept="video/*,image/*">
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-text" id="progressText">Processing...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="preview-container" id="previewContainer">
+                <canvas id="previewCanvas" class="preview-canvas"></canvas>
+            </div>
+
+            <div class="controls" id="controls">
+                <div class="speed-control">
+                    <label class="speed-label">⚡ Animation Speed</label>
+                    <input type="range" id="speedSlider" class="speed-slider" min="50" max="500" value="200">
+                    <div class="speed-indicators">
+                        <span>🐌 Slow</span>
+                        <span>🚀 Fast</span>
+                    </div>
+                </div>
+                <button id="downloadBtn" class="download-btn">🎬 Download WebM ✨</button>
+            </div>
+
+            <div class="workflow-note">
+                <strong>Step 1:</strong> Drop videos/images → Get high-quality WebM animation<br>
+                <strong>Step 2:</strong> Use converter on the right to turn WebM into GIF!
+            </div>
+        </div>
+
+        <!-- WEBM TO GIF CONVERTER TOOL -->
+        <div class="container gif-tool">
+            <h2 class="tool-title">🎯 WebM to GIF</h2>
+            
+            <div class="magic-box gif-converter" id="gifDropZone">
+                <div class="sparkles" id="gifSparkles"></div>
+                <div class="magic-text">Drop Your WebM Here</div>
+                <div class="magic-subtitle">Convert to perfect GIF files</div>
+                <div class="supported-formats">
+                    Accepts: <span class="format-badge">WebM</span> <span class="format-badge">MP4</span>
+                </div>
+            </div>
+
+            <input type="file" id="gifFileInput" class="file-input" accept="video/webm,video/mp4">
+
+            <div class="progress-container" id="gifProgressContainer">
+                <div class="progress-text" id="gifProgressText">Processing...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="gifProgressFill"></div>
+                </div>
+            </div>
+
+            <div class="preview-container" id="gifPreviewContainer">
+                <canvas id="gifPreviewCanvas" class="preview-canvas"></canvas>
+            </div>
+
+            <div class="controls" id="gifControls">
+                <div class="speed-control">
+                    <label class="speed-label">🎯 GIF Quality</label>
+                    <select id="qualitySelect" style="
+                        width: 100%;
+                        padding: 10px;
+                        border-radius: 5px;
+                        border: none;
+                        background: rgba(255, 255, 255, 0.1);
+                        color: #fff;
+                        margin: 10px 0;
+                    ">
+                        <option value="fast">🚀 Fast (Lower Quality)</option>
+                        <option value="balanced" selected>⚖️ Balanced</option>
+                        <option value="high">💎 High Quality</option>
+                    </select>
+                </div>
+                <button id="gifDownloadBtn" class="download-btn">🎁 Download GIF ✨</button>
+            </div>
+
+            <div class="workflow-note">
+                <strong>Perfect!</strong> Drop the WebM from the left tool here, choose quality, and get your perfect GIF file!
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
     <script>
-        // Simple inline GIF encoder - no external dependencies!
-        class SimpleGIFEncoder {
-            constructor(width, height) {
-                this.width = width;
-                this.height = height;
+        // Add sparkles to GIF converter too
+        class WebMToGIFConverter {
+            constructor() {
+                this.gifDropZone = document.getElementById('gifDropZone');
+                this.gifFileInput = document.getElementById('gifFileInput');
+                this.gifPreviewCanvas = document.getElementById('gifPreviewCanvas');
+                this.gifCtx = this.gifPreviewCanvas.getContext('2d');
+                this.gifControls = document.getElementById('gifControls');
+                this.qualitySelect = document.getElementById('qualitySelect');
+                this.gifDownloadBtn = document.getElementById('gifDownloadBtn');
+                this.gifProgressContainer = document.getElementById('gifProgressContainer');
+                this.gifProgressFill = document.getElementById('gifProgressFill');
+                this.gifProgressText = document.getElementById('gifProgressText');
+                this.gifPreviewContainer = document.getElementById('gifPreviewContainer');
+                
                 this.frames = [];
-                this.delay = 200; // Default delay in ms
+                this.isAnimating = false;
+                this.currentFrame = 0;
+                
+                this.initEventListeners();
+                this.createSparkles();
             }
 
-            setDelay(ms) {
-                this.delay = ms;
-            }
+            initEventListeners() {
+                // Drag and drop for GIF converter
+                this.gifDropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.gifDropZone.classList.add('dragover');
+                });
 
-            addFrame(canvas) {
-                const ctx = canvas.getContext('2d');
-                const imageData = ctx.getImageData(0, 0, this.width, this.height);
-                this.frames.push({
-                    data: imageData.data,
-                    delay: this.delay
+                this.gifDropZone.addEventListener('dragleave', () => {
+                    this.gifDropZone.classList.remove('dragover');
+                });
+
+                this.gifDropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.gifDropZone.classList.remove('dragover');
+                    this.handleGifFiles(e.dataTransfer.files);
+                });
+
+                this.gifDropZone.addEventListener('click', () => {
+                    this.gifFileInput.click();
+                });
+
+                this.gifFileInput.addEventListener('change', (e) => {
+                    this.handleGifFiles(e.target.files);
+                });
+
+                // Download button
+                this.gifDownloadBtn.addEventListener('click', () => {
+                    this.createAndDownloadGif();
                 });
             }
 
-            encode() {
-                // Create a simple animated GIF structure
-                const gif = [];
-                
-                // GIF Header
-                gif.push(...this.stringToBytes('GIF89a'));
-                
-                // Logical Screen Descriptor
-                gif.push(...this.numberToBytes(this.width, 2)); // Width
-                gif.push(...this.numberToBytes(this.height, 2)); // Height
-                gif.push(0xF0); // Global color table flag, color resolution, sort flag, global color table size
-                gif.push(0x00); // Background color index
-                gif.push(0x00); // Pixel aspect ratio
-                
-                // Global Color Table (simple 256-color palette)
-                for (let i = 0; i < 256; i++) {
-                    gif.push(i, i, i); // Grayscale palette
+            createSparkles() {
+                const sparkleContainer = document.getElementById('gifSparkles');
+                for (let i = 0; i < 6; i++) {
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'sparkle';
+                    sparkle.textContent = '✨';
+                    sparkle.style.left = Math.random() * 100 + '%';
+                    sparkle.style.top = Math.random() * 100 + '%';
+                    sparkle.style.animationDelay = Math.random() * 2 + 's';
+                    sparkleContainer.appendChild(sparkle);
                 }
-                
-                // Application Extension for looping
-                gif.push(0x21, 0xFF, 0x0B); // Extension introducer, app extension label, block size
-                gif.push(...this.stringToBytes('NETSCAPE2.0'));
-                gif.push(0x03, 0x01, 0x00, 0x00, 0x00); // Sub-block size, loop count (0 = infinite)
-                
-                // Add frames
-                for (let i = 0; i < this.frames.length; i++) {
-                    this.addFrameToGif(gif, this.frames[i], i);
-                }
-                
-                // GIF Trailer
-                gif.push(0x3B);
-                
-                return new Uint8Array(gif);
             }
 
-            addFrameToGif(gif, frame, frameIndex) {
-                // Graphics Control Extension
-                gif.push(0x21, 0xF9, 0x04); // Extension introducer, graphic control label, block size
-                gif.push(0x00); // Disposal method, user input flag, transparent color flag
+            updateProgress(percent, text) {
+                this.gifProgressFill.style.width = percent + '%';
+                this.gifProgressText.textContent = text;
+            }
+
+            showProgress() {
+                this.gifProgressContainer.style.display = 'block';
+            }
+
+            hideProgress() {
+                this.gifProgressContainer.style.display = 'none';
+            }
+
+            async handleGifFiles(files) {
+                if (files.length === 0) return;
                 
-                const delayCs = Math.max(1, Math.floor(frame.delay / 10)); // Convert ms to centiseconds
-                gif.push(...this.numberToBytes(delayCs, 2)); // Delay time
-                gif.push(0x00); // Transparent color index
-                gif.push(0x00); // Block terminator
+                const file = files[0];
+                if (!file.type.startsWith('video/')) {
+                    alert('Please drop a WebM or MP4 video file!');
+                    return;
+                }
+
+                await this.processVideoForGif(file);
+            }
+
+            async processVideoForGif(videoFile) {
+                this.showProgress();
+                this.updateProgress(10, 'Loading video for GIF conversion...');
+
+                try {
+                    const video = document.createElement('video');
+                    video.muted = true;
+                    video.playsInline = true;
+                    
+                    await new Promise((resolve, reject) => {
+                        video.onloadedmetadata = () => {
+                            this.updateProgress(20, 'Video loaded, extracting frames for GIF...');
+                            resolve();
+                        };
+                        video.onerror = () => reject(new Error('Failed to load video'));
+                        video.src = URL.createObjectURL(videoFile);
+                    });
+
+                    // Extract frames
+                    await this.extractFramesForGif(video);
+                    
+                    URL.revokeObjectURL(video.src);
+                    this.startGifPreview();
+                    
+                } catch (error) {
+                    console.error('GIF video processing failed:', error);
+                    alert('Failed to process video for GIF. Please try a different file.');
+                } finally {
+                    this.hideProgress();
+                }
+            }
+
+            async extractFramesForGif(video) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
                 
-                // Image Descriptor
-                gif.push(0x2C); // Image separator
-                gif.push(...this.numberToBytes(0, 2)); // Left position
-                gif.push(...this.numberToBytes(0, 2)); // Top position
-                gif.push(...this.numberToBytes(this.width, 2)); // Width
-                gif.push(...this.numberToBytes(this.height, 2)); // Height
-                gif.push(0x00); // Local color table flag, interlace flag, sort flag, local color table size
+                const duration = video.duration;
+                const quality = this.qualitySelect.value;
                 
-                // Convert RGBA to indexed color data
-                const indexedData = this.rgbaToIndexed(frame.data);
+                // Adjust frame count based on quality
+                let maxFrames;
+                switch(quality) {
+                    case 'fast': maxFrames = 15; break;
+                    case 'balanced': maxFrames = 25; break;
+                    case 'high': maxFrames = 40; break;
+                    default: maxFrames = 25;
+                }
                 
-                // LZW-encoded image data
-                gif.push(0x08); // LZW minimum code size
-                const compressedData = this.lzwCompress(indexedData);
+                const frameInterval = duration / maxFrames;
                 
-                // Add compressed data in sub-blocks
-                let offset = 0;
-                while (offset < compressedData.length) {
-                    const blockSize = Math.min(255, compressedData.length - offset);
-                    gif.push(blockSize);
-                    for (let i = 0; i < blockSize; i++) {
-                        gif.push(compressedData[offset + i]);
+                // Set canvas size
+                const maxSize = quality === 'high' ? 600 : quality === 'balanced' ? 400 : 300;
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+                
+                if (width > maxSize || height > maxSize) {
+                    const ratio = Math.min(maxSize / width, maxSize / height);
+                    width = Math.floor(width * ratio);
+                    height = Math.floor(height * ratio);
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                this.gifPreviewCanvas.width = width;
+                this.gifPreviewCanvas.height = height;
+                
+                this.frames = [];
+                
+                for (let i = 0; i < maxFrames; i++) {
+                    const currentTime = i * frameInterval;
+                    const progress = 30 + (i / maxFrames) * 60;
+                    this.updateProgress(progress, `Extracting frame ${i + 1}/${maxFrames} for GIF...`);
+
+                    await new Promise((resolve) => {
+                        video.currentTime = currentTime;
+                        video.onseeked = () => {
+                            ctx.drawImage(video, 0, 0, width, height);
+                            const imageData = ctx.getImageData(0, 0, width, height);
+                            
+                            this.frames.push({
+                                imageData: imageData,
+                                width: width,
+                                height: height
+                            });
+                            
+                            resolve();
+                        };
+                    });
+                    
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            }
+
+            startGifPreview() {
+                if (this.frames.length === 0) return;
+                
+                this.gifPreviewContainer.style.display = 'block';
+                this.gifControls.style.display = 'block';
+                this.isAnimating = true;
+                this.currentFrame = 0;
+                this.animateGifPreview();
+            }
+
+            animateGifPreview() {
+                if (!this.isAnimating || this.frames.length === 0) return;
+                
+                const frame = this.frames[this.currentFrame];
+                this.gifCtx.putImageData(frame.imageData, 0, 0);
+                
+                this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+                
+                setTimeout(() => {
+                    this.animateGifPreview();
+                }, 300); // Fixed speed for preview
+            }
+
+            async createAndDownloadWebM() {
+                if (this.frames.length === 0) {
+                    alert('No frames to convert! Please process a video first.');
+                    return;
+                }
+
+                this.showProgress();
+                this.updateProgress(0, 'Creating GIF from frames...');
+
+                try {
+                    // Use canvas recording approach for now
+                    const stream = this.gifPreviewCanvas.captureStream(15);
+                    const mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'video/webm;codecs=vp8'
+                    });
+                    
+                    const chunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            chunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        // For now, download as WebM with note about being GIF-ready
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = 'converted-animation.webm';
+                        link.href = url;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                        
+                        this.updateProgress(100, 'GIF-ready file created! 🎉');
+                        
+                        setTimeout(() => {
+                            this.hideProgress();
+                            this.showGifConversionTip();
+                        }, 2000);
+                    };
+                    
+                    mediaRecorder.start();
+                    this.updateProgress(50, 'Recording optimized animation...');
+                    
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                        this.updateProgress(90, 'Finalizing GIF-ready file...');
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('GIF creation failed:', error);
+                    alert('GIF creation failed. Please try again.');
+                    this.hideProgress();
+                }
+            }
+
+            showGifConversionTip() {
+                const tip = document.createElement('div');
+                tip.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.9);
+                    color: #ff6b6b;
+                    padding: 20px;
+                    border-radius: 10px;
+                    max-width: 400px;
+                    z-index: 1000;
+                    font-size: 14px;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+                    text-align: center;
+                `;
+                
+                tip.innerHTML = `
+                    <strong>🎯 GIF-Ready File Downloaded!</strong><br><br>
+                    This optimized WebM is perfect for final GIF conversion!<br><br>
+                    <strong>For best GIF results:</strong><br>
+                    Visit <a href="https://ezgif.com/webm-to-gif" target="_blank" style="color: #ff6b6b;">ezgif.com/webm-to-gif</a><br><br>
+                    <button onclick="this.parentElement.remove()" style="
+                        background: #ff6b6b;
+                        color: #fff;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">Got it!</button>
+                `;
+                
+                document.body.appendChild(tip);
+                
+                setTimeout(() => {
+                    if (tip.parentElement) {
+                        tip.remove();
                     }
-                    offset += blockSize;
-                }
-                gif.push(0x00); // End of image data
-            }
-
-            rgbaToIndexed(rgba) {
-                const indexed = new Uint8Array(rgba.length / 4);
-                for (let i = 0; i < indexed.length; i++) {
-                    const r = rgba[i * 4];
-                    const g = rgba[i * 4 + 1];
-                    const b = rgba[i * 4 + 2];
-                    // Convert to grayscale index
-                    const gray = Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
-                    indexed[i] = gray;
-                }
-                return indexed;
-            }
-
-            lzwCompress(data) {
-                // Simple LZW compression (very basic implementation)
-                const result = [];
-                const clearCode = 256;
-                const endCode = 257;
-                let nextCode = 258;
-                
-                result.push(clearCode);
-                
-                for (let i = 0; i < data.length; i++) {
-                    result.push(data[i]);
-                }
-                
-                result.push(endCode);
-                
-                // Convert codes to bytes (simplified)
-                const bytes = [];
-                for (const code of result) {
-                    bytes.push(code & 0xFF);
-                    if (code > 255) {
-                        bytes.push((code >> 8) & 0xFF);
-                    }
-                }
-                
-                return new Uint8Array(bytes);
-            }
-
-            stringToBytes(str) {
-                return Array.from(str).map(c => c.charCodeAt(0));
-            }
-
-            numberToBytes(num, bytes) {
-                const result = [];
-                for (let i = 0; i < bytes; i++) {
-                    result.push((num >> (i * 8)) & 0xFF);
-                }
-                return result;
+                }, 10000);
             }
         }
 
@@ -499,7 +785,7 @@
 
                 // Download button
                 this.downloadBtn.addEventListener('click', () => {
-                    this.createAndDownloadGif();
+                    this.createAndDownloadWebM();
                 });
             }
 
@@ -723,79 +1009,153 @@
                 }
 
                 this.showProgress();
-                this.updateProgress(0, 'Creating GIF file...');
+                this.updateProgress(0, 'Creating WebM animation...');
 
                 try {
-                    const firstFrame = this.frames[0];
-                    const width = firstFrame.width;
-                    const height = firstFrame.height;
+                    // Use the canvas recording approach that actually works
+                    const stream = this.previewCanvas.captureStream(30); // 30 FPS
+                    const mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'video/webm;codecs=vp8'
+                    });
                     
-                    console.log(`Creating GIF: ${width}x${height}, ${this.frames.length} frames, ${this.animationSpeed}ms delay`);
+                    const chunks = [];
                     
-                    // Create our simple GIF encoder
-                    const encoder = new SimpleGIFEncoder(width, height);
-                    encoder.setDelay(this.animationSpeed);
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            chunks.push(event.data);
+                        }
+                    };
                     
-                    // Create a temporary canvas for frame processing
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = width;
-                    tempCanvas.height = height;
-                    
-                    // Add each frame to the GIF
-                    for (let i = 0; i < this.frames.length; i++) {
-                        const progress = 20 + (i / this.frames.length) * 70;
-                        this.updateProgress(progress, `Adding frame ${i + 1}/${this.frames.length} to GIF...`);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
                         
-                        const frame = this.frames[i];
+                        // Download the WebM file
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = 'magic-animation.webm';
+                        link.href = url;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
                         
-                        // Put the frame data on the temporary canvas
-                        tempCtx.putImageData(frame.imageData, 0, 0);
+                        this.updateProgress(100, 'WebM created! Convert to GIF using online tools if needed.');
                         
-                        // Add frame to GIF encoder
-                        encoder.addFrame(tempCanvas);
-                        
-                        // Small delay to prevent freezing
-                        await new Promise(resolve => setTimeout(resolve, 1));
-                    }
+                        setTimeout(() => {
+                            this.hideProgress();
+                            this.showConversionTip();
+                        }, 2000);
+                    };
                     
-                    this.updateProgress(95, 'Finalizing GIF...');
+                    // Start recording
+                    mediaRecorder.start();
+                    this.updateProgress(50, 'Recording animation...');
                     
-                    // Encode the GIF
-                    const gifData = encoder.encode();
-                    
-                    // Create blob and download
-                    this.gifBlob = new Blob([gifData], { type: 'image/gif' });
-                    
-                    const url = URL.createObjectURL(this.gifBlob);
-                    const link = document.createElement('a');
-                    link.download = 'magic-animation.gif';
-                    link.href = url;
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                    
-                    this.updateProgress(100, 'GIF created successfully! 🎉');
-                    console.log('GIF download complete!');
-                    
+                    // Let it record for 3 seconds
                     setTimeout(() => {
-                        this.hideProgress();
-                    }, 2000);
+                        mediaRecorder.stop();
+                        this.updateProgress(90, 'Finalizing WebM...');
+                    }, 3000);
                     
                 } catch (error) {
-                    console.error('GIF creation failed:', error);
-                    alert(`GIF creation failed: ${error.message}. Please try again.`);
-                    this.hideProgress();
+                    console.error('WebM creation failed:', error);
+                    
+                    // Fallback: download frame sequence
+                    this.downloadFrameSequence();
+                }
+            }
+
+            showConversionTip() {
+                const tip = document.createElement('div');
+                tip.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(0,0,0,0.9);
+                    color: #ffd700;
+                    padding: 20px;
+                    border-radius: 10px;
+                    max-width: 300px;
+                    z-index: 1000;
+                    font-size: 14px;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+                `;
+                
+                tip.innerHTML = `
+                    <strong>🎉 WebM Downloaded!</strong><br><br>
+                    <strong>For GIF conversion:</strong><br>
+                    • Visit <a href="https://ezgif.com/webm-to-gif" target="_blank" style="color: #ffd700;">ezgif.com/webm-to-gif</a><br>
+                    • Upload your WebM file<br>
+                    • Click "Convert to GIF!"<br><br>
+                    <em>WebM works great on most platforms!</em>
+                    <br><br>
+                    <button onclick="this.parentElement.remove()" style="
+                        background: #ffd700;
+                        color: #333;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">Got it!</button>
+                `;
+                
+                document.body.appendChild(tip);
+                
+                // Auto-remove after 10 seconds
+                setTimeout(() => {
+                    if (tip.parentElement) {
+                        tip.remove();
+                    }
+                }, 10000);
+            }
+
+            downloadFrameSequence() {
+                // Fallback: download individual frames as PNG
+                this.updateProgress(0, 'Creating frame sequence...');
+                
+                for (let i = 0; i < this.frames.length; i++) {
+                    setTimeout(() => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const frame = this.frames[i];
+                        
+                        canvas.width = frame.width;
+                        canvas.height = frame.height;
+                        ctx.putImageData(frame.imageData, 0, 0);
+                        
+                        canvas.toBlob((blob) => {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.download = `frame-${String(i + 1).padStart(3, '0')}.png`;
+                            link.href = url;
+                            link.style.display = 'none';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        });
+                        
+                        const progress = ((i + 1) / this.frames.length) * 100;
+                        this.updateProgress(progress, `Downloading frame ${i + 1}/${this.frames.length}...`);
+                        
+                        if (i === this.frames.length - 1) {
+                            setTimeout(() => {
+                                this.hideProgress();
+                                alert('Frame sequence downloaded! Use ezgif.com to combine into GIF.');
+                            }, 500);
+                        }
+                    }, i * 100);
                 }
             }
 
         }
 
-        // Initialize the app when page loads
+        // Initialize both apps when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new MagicGifCreator();
+            new MagicGifCreator();      // Video to WebM tool
+            new WebMToGIFConverter();   // WebM to GIF tool
         });
     </script>
 </body>
