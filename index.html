@@ -31,7 +31,7 @@
                 grid-template-columns: 1fr;
             }
 
-            async createAndDownloadRealGif() {
+            createGifFromFrames() {
                 if (this.frames.length === 0) {
                     alert('No frames to convert! Please process a video first.');
                     return;
@@ -42,7 +42,8 @@
 
                 try {
                     const quality = this.qualitySelect.value;
-                    let gifQuality, frameDelay;
+                    let gifQuality = 10;
+                    let frameDelay = 150;
                     
                     switch(quality) {
                         case 'fast': 
@@ -57,11 +58,9 @@
                             gifQuality = 1; 
                             frameDelay = 100; 
                             break;
-                        default: 
-                            gifQuality = 10; 
-                            frameDelay = 150;
                     }
 
+                    console.log(`Creating GIF with ${this.frames.length} frames, quality: ${gifQuality}, delay: ${frameDelay}`);
                     this.updateProgress(10, 'Initializing GIF encoder...');
 
                     // Create GIF using gif.js
@@ -70,8 +69,7 @@
                         workers: 2,
                         quality: gifQuality,
                         width: firstFrame.width,
-                        height: firstFrame.height,
-                        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+                        height: firstFrame.height
                     });
 
                     // Create temporary canvas for frame processing
@@ -81,25 +79,30 @@
                     tempCanvas.height = firstFrame.height;
 
                     // Add each frame to the GIF
+                    let frameCount = 0;
                     for (let i = 0; i < this.frames.length; i++) {
                         const progress = 20 + (i / this.frames.length) * 60;
                         this.updateProgress(progress, `Adding frame ${i + 1}/${this.frames.length} to GIF...`);
                         
                         const frame = this.frames[i];
                         
-                        // Put frame data on canvas
-                        tempCtx.putImageData(frame.imageData, 0, 0);
-                        
-                        // Add frame to GIF with delay
-                        gif.addFrame(tempCanvas, {
-                            delay: frameDelay,
-                            copy: true
-                        });
-                        
-                        // Small delay to prevent freezing
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                        try {
+                            // Put frame data on canvas
+                            tempCtx.putImageData(frame.imageData, 0, 0);
+                            
+                            // Add frame to GIF with delay
+                            gif.addFrame(tempCanvas, {
+                                delay: frameDelay,
+                                copy: true
+                            });
+                            
+                            frameCount++;
+                        } catch (error) {
+                            console.warn(`Failed to add frame ${i}:`, error);
+                        }
                     }
 
+                    console.log(`Added ${frameCount} frames to GIF`);
                     this.updateProgress(85, 'Rendering GIF file...');
 
                     // Render the GIF
@@ -109,10 +112,12 @@
                     });
 
                     gif.on('finished', (blob) => {
+                        console.log('GIF rendering finished, blob size:', blob.size);
+                        
                         // Download the ACTUAL GIF file
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
-                        link.download = 'converted-animation.gif';
+                        link.download = 'magic-animation.gif';
                         link.href = url;
                         link.style.display = 'none';
                         document.body.appendChild(link);
@@ -121,18 +126,25 @@
                         URL.revokeObjectURL(url);
                         
                         this.updateProgress(100, 'REAL GIF file created! 🎉');
-                        console.log('ACTUAL GIF download complete!');
+                        console.log('GIF download complete!');
                         
                         setTimeout(() => {
                             this.hideProgress();
                         }, 2000);
                     });
 
+                    gif.on('abort', () => {
+                        console.error('GIF rendering aborted');
+                        this.hideProgress();
+                        alert('GIF rendering was aborted. Please try again.');
+                    });
+
+                    console.log('Starting GIF render...');
                     gif.render();
                     
                 } catch (error) {
                     console.error('GIF creation failed:', error);
-                    alert(`REAL GIF creation failed: ${error.message}. Please try again.`);
+                    alert(`GIF creation failed: ${error.message}`);
                     this.hideProgress();
                 }
             }
@@ -573,7 +585,13 @@
                 // Download button
                 this.gifDownloadBtn.addEventListener('click', () => {
                     console.log('GIF download button clicked!');
-                    this.createAndDownloadRealGif();
+                    console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this)));
+                    if (typeof this.createGifFromFrames === 'function') {
+                        this.createGifFromFrames();
+                    } else {
+                        console.error('createGifFromFrames method not found!');
+                        alert('Function not found - check console for details');
+                    }
                 });
             }
 
