@@ -294,8 +294,8 @@
         </div>
     </div>
 
-    <!-- omggif library for reliable GIF creation -->
-    <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
+    <!-- jsgif library - much simpler API -->
+    <script src="https://cdn.jsdelivr.net/npm/jsgif@0.0.7/GIFEncoder.js"></script>
     
     <script>
         class MagicGifCreator {
@@ -581,43 +581,54 @@
                 this.updateProgress(0, 'Creating GIF file...');
 
                 try {
-                    // Calculate frame delay in centiseconds (GIF timing unit)
-                    const frameDelay = Math.max(5, Math.floor(this.animationSpeed / 10));
-                    
                     const firstFrame = this.frames[0];
                     const width = firstFrame.width;
                     const height = firstFrame.height;
                     
-                    // Create GIF using omggif
-                    const gif = new Uint8Array(width * height * this.frames.length * 4); // Generous buffer
-                    const writer = new GifWriter(gif, width, height, { loop: 0 });
+                    // Calculate frame delay in centiseconds (GIF timing unit)
+                    const frameDelay = Math.max(5, Math.floor(this.animationSpeed / 10));
                     
+                    console.log(`Creating GIF: ${width}x${height}, ${this.frames.length} frames, ${frameDelay}cs delay`);
+                    
+                    // Create GIF encoder
+                    const encoder = new GIFEncoder();
+                    encoder.setRepeat(0); // 0 = loop forever
+                    encoder.setDelay(frameDelay * 10); // jsgif uses milliseconds
+                    encoder.setQuality(10); // 1-30, lower is better quality
+                    
+                    encoder.start();
+                    
+                    // Create a temporary canvas for frame processing
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    
+                    // Add each frame to the GIF
                     for (let i = 0; i < this.frames.length; i++) {
-                        const progress = (i / this.frames.length) * 90;
+                        const progress = 20 + (i / this.frames.length) * 70;
                         this.updateProgress(progress, `Adding frame ${i + 1}/${this.frames.length} to GIF...`);
                         
                         const frame = this.frames[i];
-                        const rgba = frame.imageData.data;
                         
-                        // Convert RGBA to indexed color palette
-                        const indexed = this.convertToIndexed(rgba, width, height);
+                        // Put the frame data on the temporary canvas
+                        tempCtx.putImageData(frame.imageData, 0, 0);
                         
-                        writer.addFrame(0, 0, width, height, indexed.pixels, {
-                            palette: indexed.palette,
-                            delay: frameDelay
-                        });
+                        // Add frame to GIF encoder
+                        encoder.addFrame(tempCtx);
                         
                         // Small delay to prevent freezing
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                        await new Promise(resolve => setTimeout(resolve, 1));
                     }
                     
                     this.updateProgress(95, 'Finalizing GIF...');
+                    encoder.finish();
                     
-                    // Get the actual GIF data
-                    const gifData = gif.slice(0, writer.bytesWritten());
+                    // Get the GIF data as Uint8Array
+                    const gifData = encoder.stream().getData();
                     
-                    // Create blob and download
-                    this.gifBlob = new Blob([gifData], { type: 'image/gif' });
+                    // Convert to blob and download
+                    this.gifBlob = new Blob([new Uint8Array(gifData)], { type: 'image/gif' });
                     
                     const url = URL.createObjectURL(this.gifBlob);
                     const link = document.createElement('a');
@@ -630,6 +641,7 @@
                     URL.revokeObjectURL(url);
                     
                     this.updateProgress(100, 'GIF created successfully! 🎉');
+                    console.log('GIF download complete!');
                     
                     setTimeout(() => {
                         this.hideProgress();
@@ -637,40 +649,11 @@
                     
                 } catch (error) {
                     console.error('GIF creation failed:', error);
-                    alert('Failed to create GIF. Please try again with fewer frames or smaller dimensions.');
+                    alert(`GIF creation failed: ${error.message}. Please try again.`);
                     this.hideProgress();
                 }
             }
 
-            convertToIndexed(rgba, width, height) {
-                // Simple color quantization to 256 colors
-                const palette = new Array(256 * 3);
-                const pixels = new Uint8Array(width * height);
-                const colorMap = new Map();
-                
-                // Create a simple palette with common colors
-                let paletteIndex = 0;
-                
-                // Add grayscale palette first
-                for (let i = 0; i < 256; i++) {
-                    palette[i * 3] = i;       // R
-                    palette[i * 3 + 1] = i;   // G  
-                    palette[i * 3 + 2] = i;   // B
-                }
-                
-                // Convert pixels to nearest palette color
-                for (let i = 0; i < width * height; i++) {
-                    const r = rgba[i * 4];
-                    const g = rgba[i * 4 + 1];
-                    const b = rgba[i * 4 + 2];
-                    
-                    // Simple grayscale conversion for demo
-                    const gray = Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
-                    pixels[i] = gray;
-                }
-                
-                return { pixels, palette };
-            }
         }
 
         // Initialize the app when page loads
