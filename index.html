@@ -308,6 +308,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.min.js"></script>
     <script>
         class MagicGifCreator {
             constructor() {
@@ -781,10 +782,75 @@
             }
 
             downloadGif() {
-                const link = document.createElement('a');
-                link.download = 'magic-gif.png';
-                link.href = this.canvas.toDataURL();
-                link.click();
+                if (this.frames.length === 0) {
+                    alert('No frames to export!');
+                    return;
+                }
+                
+                // Show progress for GIF creation
+                this.updateProgress(0, 'Creating animated GIF...');
+                this.showProcessing();
+                
+                // Create GIF with gif.js
+                const gif = new GIF({
+                    workers: 2,
+                    quality: 10,
+                    width: this.frames[0].width,
+                    height: this.frames[0].height,
+                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                });
+                
+                // Get current animation speed from slider
+                const frameDelay = 1050 - parseInt(this.speedSlider.value);
+                
+                // Add each frame to the GIF
+                this.frames.forEach((frame, index) => {
+                    // Create a temporary canvas for this frame
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = frame.width;
+                    tempCanvas.height = frame.height;
+                    
+                    // Put the frame data on the canvas
+                    tempCtx.putImageData(frame.imageData, 0, 0);
+                    
+                    // Add frame to GIF with current speed
+                    gif.addFrame(tempCanvas, { delay: frameDelay });
+                    
+                    // Update progress
+                    const progress = (index / this.frames.length) * 50;
+                    this.updateProgress(progress, `Adding frame ${index + 1}/${this.frames.length} to GIF...`);
+                });
+                
+                this.updateProgress(50, 'Rendering GIF... (this may take a moment)');
+                
+                // When GIF is finished rendering
+                gif.on('finished', (blob) => {
+                    this.updateProgress(100, 'GIF ready for download!');
+                    
+                    // Create download link
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = 'magic-gif.gif';  // Actually a GIF now!
+                    link.href = url;
+                    link.click();
+                    
+                    // Clean up
+                    URL.revokeObjectURL(url);
+                    
+                    // Hide progress after a moment
+                    setTimeout(() => {
+                        this.hideProcessing();
+                    }, 1000);
+                });
+                
+                gif.on('progress', (progress) => {
+                    const percentage = 50 + (progress * 50);
+                    this.updateProgress(percentage, `Rendering GIF... ${Math.round(progress * 100)}%`);
+                });
+                
+                // Start rendering the GIF
+                gif.render();
             }
 
             updateProgress(percentage, message) {
