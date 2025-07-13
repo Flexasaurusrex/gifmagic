@@ -1037,53 +1037,122 @@
                     await new Promise((resolve, reject) => {
                         video.addEventListener('loadedmetadata', resolve);
                         video.addEventListener('error', reject);
+                        
+                        // Add timeout for loading
+                        setTimeout(() => {
+                            reject(new Error('Video loading timeout'));
+                        }, 10000);
                     });
 
                     this.updateProgress(15, 'Analyzing video...');
+
+                    // Validate video properties
+                    const duration = video.duration;
+                    const width = video.videoWidth;
+                    const height = video.videoHeight;
+                    
+                    console.log('Video properties:', { duration, width, height });
+                    
+                    if (!duration || duration <= 0 || !isFinite(duration)) {
+                        throw new Error(`Invalid video duration: ${duration}`);
+                    }
+                    
+                    if (!width || !height || width <= 0 || height <= 0) {
+                        throw new Error(`Invalid video dimensions: ${width}x${height}`);
+                    }
 
                     const quality = this.getQualitySettings();
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    let width = video.videoWidth;
-                    let height = video.videoHeight;
+                    // Calculate safe dimensions
+                    let canvasWidth = width;
+                    let canvasHeight = height;
                     
-                    if (width > quality.maxDimension || height > quality.maxDimension) {
-                        const scale = quality.maxDimension / Math.max(width, height);
-                        width = Math.floor(width * scale);
-                        height = Math.floor(height * scale);
+                    if (canvasWidth > quality.maxDimension || canvasHeight > quality.maxDimension) {
+                        const scale = quality.maxDimension / Math.max(canvasWidth, canvasHeight);
+                        canvasWidth = Math.floor(canvasWidth * scale);
+                        canvasHeight = Math.floor(canvasHeight * scale);
                     }
                     
-                    canvas.width = width;
-                    canvas.height = height;
+                    // Ensure minimum dimensions
+                    canvasWidth = Math.max(10, canvasWidth);
+                    canvasHeight = Math.max(10, canvasHeight);
+                    
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
 
                     this.updateProgress(25, 'Extracting frames...');
 
                     const frames = [];
-                    const duration = video.duration;
-                    const frameCount = Math.min(quality.maxFrames, Math.floor(duration * quality.fps));
+                    const maxFrames = Math.min(quality.maxFrames, 50); // Cap at 50 frames
+                    const frameCount = Math.min(maxFrames, Math.max(5, Math.floor(duration * quality.fps)));
                     const frameInterval = duration / frameCount;
+                    
+                    console.log('Frame extraction plan:', { frameCount, frameInterval, duration });
+                    
+                    if (!isFinite(frameInterval) || frameInterval <= 0) {
+                        throw new Error(`Invalid frame interval: ${frameInterval}`);
+                    }
 
                     for (let i = 0; i < frameCount; i++) {
                         const currentTime = i * frameInterval;
-                        video.currentTime = currentTime;
+                        
+                        // Validate currentTime before setting
+                        if (!isFinite(currentTime) || currentTime < 0 || currentTime >= duration) {
+                            console.warn(`Skipping invalid frame time: ${currentTime}`);
+                            continue;
+                        }
+                        
+                        try {
+                            video.currentTime = currentTime;
 
-                        await new Promise((resolve) => {
-                            video.addEventListener('seeked', resolve, { once: true });
-                        });
+                            await new Promise((resolve) => {
+                                let resolved = false;
+                                
+                                const onSeeked = () => {
+                                    if (!resolved) {
+                                        resolved = true;
+                                        video.removeEventListener('seeked', onSeeked);
+                                        resolve();
+                                    }
+                                };
+                                
+                                video.addEventListener('seeked', onSeeked);
+                                
+                                // Timeout for seek operation
+                                setTimeout(() => {
+                                    if (!resolved) {
+                                        resolved = true;
+                                        video.removeEventListener('seeked', onSeeked);
+                                        resolve(); // Continue even if seek fails
+                                    }
+                                }, 2000);
+                            });
 
-                        ctx.drawImage(video, 0, 0, width, height);
-                        const imageData = ctx.getImageData(0, 0, width, height);
-                        frames.push(imageData);
+                            ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+                            const imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+                            frames.push(imageData);
 
-                        const progress = 25 + ((i + 1) / frameCount) * 50;
-                        this.updateProgress(progress, `Frame ${i + 1}/${frameCount}`);
+                            const progress = 25 + ((i + 1) / frameCount) * 50;
+                            this.updateProgress(progress, `Frame ${i + 1}/${frameCount}`);
+                            
+                        } catch (frameError) {
+                            console.warn(`Error processing frame ${i}:`, frameError);
+                            // Continue with next frame
+                        }
                     }
 
                     URL.revokeObjectURL(videoUrl);
+                    
+                    if (frames.length === 0) {
+                        throw new Error('No frames were extracted from the video');
+                    }
+                    
+                    console.log(`Successfully extracted ${frames.length} frames`);
 
                     this.updateProgress(80, 'Creating GIF...');
-                    await this.createGifFromFrames(frames, width, height, quality);
+                    await this.createGifFromFrames(frames, canvasWidth, canvasHeight, quality);
 
                     this.updateProgress(100, 'GIF ready!');
                     this.showGifResult();
@@ -1091,9 +1160,21 @@
 
                 } catch (error) {
                     console.error('Conversion failed:', error);
-                    this.updateProgress(0, 'Conversion failed');
+                    this.updateProgress(0, `Conversion failed: ${error.message}`);
                     this.hideProcessing();
-                    alert('Conversion failed. Please try a different WebM file.');
+                    
+                    let errorMessage = 'Conversion failed. ';
+                    if (error.message.includes('duration')) {
+                        errorMessage += 'The WebM file appears to be corrupted or has invalid duration.';
+                    } else if (error.message.includes('dimensions')) {
+                        errorMessage += 'The WebM file has invalid video dimensions.';
+                    } else if (error.message.includes('timeout')) {
+                        errorMessage += 'The WebM file took too long to load.';
+                    } else {
+                        errorMessage += 'Please try a different WebM file.';
+                    }
+                    
+                    alert(errorMessage);
                 }
             }
 
