@@ -1064,10 +1064,26 @@
                 this.updateProgress(0, 'Creating WebM animation...');
 
                 try {
-                    // Use the canvas recording approach that actually works
-                    const stream = this.previewCanvas.captureStream(30); // 30 FPS
+                    // Stop current animation to restart with recording
+                    this.isAnimating = false;
+                    
+                    // Calculate duration based on frames and speed
+                    const frameDuration = this.animationSpeed; // ms per frame
+                    const totalDuration = this.frames.length * frameDuration; // total duration in ms
+                    const recordingDuration = Math.min(totalDuration, 10000); // Max 10 seconds
+                    
+                    console.log(`Creating WebM: ${this.frames.length} frames, ${frameDuration}ms per frame, ${recordingDuration}ms total`);
+                    
+                    // Start the animation for recording
+                    this.isAnimating = true;
+                    this.currentFrame = 0;
+                    this.recordingAnimate();
+                    
+                    // Start canvas stream recording
+                    const stream = this.previewCanvas.captureStream(30);
                     const mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: 'video/webm;codecs=vp8'
+                        mimeType: 'video/webm;codecs=vp8',
+                        videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality
                     });
                     
                     const chunks = [];
@@ -1075,11 +1091,19 @@
                     mediaRecorder.ondataavailable = (event) => {
                         if (event.data.size > 0) {
                             chunks.push(event.data);
+                            console.log(`WebM chunk received: ${event.data.size} bytes`);
                         }
                     };
                     
                     mediaRecorder.onstop = () => {
+                        this.isAnimating = false; // Stop animation
+                        
+                        if (chunks.length === 0) {
+                            throw new Error('No video data recorded');
+                        }
+                        
                         const blob = new Blob(chunks, { type: 'video/webm' });
+                        console.log(`WebM created: ${blob.size} bytes`);
                         
                         // Download the WebM file
                         const url = URL.createObjectURL(blob);
@@ -1092,30 +1116,64 @@
                         document.body.removeChild(link);
                         URL.revokeObjectURL(url);
                         
-                        this.updateProgress(100, 'WebM created! Convert to GIF using online tools if needed.');
+                        this.updateProgress(100, 'WebM created successfully! 🎉');
+                        console.log('WebM download complete!');
                         
+                        // Restart normal animation
                         setTimeout(() => {
                             this.hideProgress();
-                            this.showConversionTip();
-                        }, 2000);
+                            this.isAnimating = true;
+                            this.currentFrame = 0;
+                            this.animate();
+                        }, 1000);
+                    };
+                    
+                    mediaRecorder.onerror = (error) => {
+                        this.isAnimating = false;
+                        throw new Error(`MediaRecorder error: ${error.message}`);
                     };
                     
                     // Start recording
-                    mediaRecorder.start();
-                    this.updateProgress(50, 'Recording animation...');
+                    this.updateProgress(20, 'Starting WebM recording...');
+                    mediaRecorder.start(100); // Collect data every 100ms
                     
-                    // Let it record for 3 seconds
+                    this.updateProgress(50, `Recording ${recordingDuration/1000}s WebM animation...`);
+                    
+                    // Stop recording after calculated duration
                     setTimeout(() => {
-                        mediaRecorder.stop();
                         this.updateProgress(90, 'Finalizing WebM...');
-                    }, 3000);
+                        try {
+                            mediaRecorder.stop();
+                        } catch (error) {
+                            console.error('Error stopping recorder:', error);
+                            this.hideProgress();
+                        }
+                    }, recordingDuration);
                     
                 } catch (error) {
                     console.error('WebM creation failed:', error);
+                    this.isAnimating = false;
+                    alert(`WebM creation failed: ${error.message}. Please try again.`);
+                    this.hideProgress();
                     
-                    // Fallback: download frame sequence
-                    this.downloadFrameSequence();
+                    // Restart animation if it was stopped
+                    this.isAnimating = true;
+                    this.animate();
                 }
+            }
+
+            // Separate animation function for recording
+            recordingAnimate() {
+                if (!this.isAnimating || this.frames.length === 0) return;
+                
+                const frame = this.frames[this.currentFrame];
+                this.ctx.putImageData(frame.imageData, 0, 0);
+                
+                this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+                
+                setTimeout(() => {
+                    this.recordingAnimate();
+                }, this.animationSpeed);
             }
 
             showConversionTip() {
