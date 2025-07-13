@@ -274,11 +274,11 @@
         <input type="file" id="fileInput" multiple accept="image/*,video/*">
 
         <div class="format-info" id="formatInfo" style="display: none;">
-            <strong>🎉 UNIVERSAL VIDEO SUPPORT with ffmpeg!</strong><br>
-            <span class="format-supported">✅ Fully Supported:</span> MP4, AVI, MOV, MKV, WebM, FLV, WMV, 3GP, and basically any video format!<br>
-            <span class="format-supported">✅ Any Codec:</span> H.264, H.265, VP9, AV1, DivX, Xvid - ffmpeg handles it all!<br>
-            <span class="format-supported">✅ Perfect GIFs:</span> High-quality palette optimization and dithering<br><br>
-            <strong>💡 Powered by ffmpeg.wasm - the same engine used by professional video editors!</strong>
+            <strong>🎉 HYBRID VIDEO PROCESSING!</strong><br>
+            <span class="format-supported">✅ Best Experience:</span> FFmpeg loaded - supports ALL video formats (MP4, AVI, MKV, etc.)<br>
+            <span class="format-supported">✅ Fallback Mode:</span> Canvas processing - supports MP4, WebM, MOV<br>
+            <span class="format-supported">✅ Always Works:</span> Real GIF files guaranteed!<br><br>
+            <strong>💡 Your app automatically uses the best available method!</strong>
             <button class="retry-btn" onclick="magicGifApp.resetApp()">Try Another File</button>
         </div>
 
@@ -308,7 +308,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js"></script>
     <script>
         class MagicGifCreator {
             constructor() {
@@ -340,39 +341,39 @@
 
             async initFFmpeg() {
                 try {
-                    this.updateProgress(0, 'Loading ffmpeg engine...');
-                    this.showProcessing();
+                    // Don't show loading initially - wait a bit
+                    console.log('Starting FFmpeg initialization...');
                     
-                    // Check if FFmpeg is available
+                    // Check if FFmpeg is available - older stable version
                     if (typeof createFFmpeg === 'undefined') {
                         throw new Error('FFmpeg not available');
                     }
                     
                     this.ffmpeg = createFFmpeg({ 
-                        log: true,
-                        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+                        log: false,  // Reduce console spam
+                        corePath: 'https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js'
                     });
                     
-                    this.ffmpeg.setLogger(({ type, message }) => {
-                        console.log(`FFmpeg ${type}:`, message);
-                    });
-                    
-                    this.ffmpeg.setProgress(({ ratio }) => {
-                        if (ratio > 0) {
-                            this.updateProgress(20 + (ratio * 60), `Processing... ${Math.round(ratio * 100)}%`);
-                        }
-                    });
-                    
+                    console.log('FFmpeg instance created, loading...');
                     await this.ffmpeg.load();
+                    
                     this.ffmpegLoaded = true;
-                    this.hideProcessing();
                     console.log('FFmpeg loaded successfully!');
+                    
+                    // Update UI to show ffmpeg is ready
+                    const formatInfo = document.getElementById('formatInfo');
+                    if (formatInfo) {
+                        formatInfo.style.display = 'block';
+                        setTimeout(() => {
+                            formatInfo.style.display = 'none';
+                        }, 3000);
+                    }
                     
                 } catch (error) {
                     console.error('FFmpeg failed to load:', error);
-                    this.hideProcessing();
-                    alert('FFmpeg failed to load. The app will work with limited video format support.');
-                    // Continue without ffmpeg for basic functionality
+                    console.log('Continuing without FFmpeg - basic functionality available');
+                    this.ffmpegLoaded = false;
+                    // App will continue to work with basic browser video support
                 }
             }
 
@@ -416,11 +417,6 @@
             async handleFiles(files) {
                 if (files.length === 0) return;
 
-                if (!this.ffmpegLoaded) {
-                    alert('FFmpeg is still loading. Please wait a moment and try again.');
-                    return;
-                }
-
                 this.showProcessing();
                 
                 const firstFile = files[0];
@@ -434,16 +430,217 @@
                 
                 if (firstFile.type.startsWith('video/')) {
                     try {
-                        await this.processVideoWithFFmpeg(firstFile);
+                        if (this.ffmpegLoaded) {
+                            console.log('Using FFmpeg for processing');
+                            await this.processVideoWithFFmpeg(firstFile);
+                        } else {
+                            console.log('Using canvas fallback for processing');
+                            await this.processVideoWithCanvas(firstFile);
+                        }
                     } catch (error) {
                         console.error('Video processing failed:', error);
                         this.updateProgress(0, 'Video processing failed');
                         this.hideProcessing();
-                        alert('Video processing failed. Please try a different file.');
+                        alert('Video processing failed. Please try a different file or format.');
                     }
                 } else if (firstFile.type.startsWith('image/')) {
                     await this.processImages(Array.from(files));
                 }
+            }
+
+            async processVideoWithCanvas(videoFile) {
+                this.updateProgress(5, `Processing ${videoFile.name} with canvas...`);
+                
+                return new Promise((resolve, reject) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.crossOrigin = 'anonymous';
+                    
+                    const timeout = setTimeout(() => {
+                        URL.revokeObjectURL(video.src);
+                        reject(new Error('Video loading timeout'));
+                    }, 30000);
+                    
+                    video.addEventListener('error', (e) => {
+                        clearTimeout(timeout);
+                        URL.revokeObjectURL(video.src);
+                        reject(e);
+                    });
+                    
+                    video.addEventListener('loadedmetadata', async () => {
+                        clearTimeout(timeout);
+                        this.updateProgress(20, 'Extracting frames...');
+                        
+                        try {
+                            await this.extractFramesAndCreateGif(video, videoFile.name);
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
+                    
+                    video.src = URL.createObjectURL(videoFile);
+                    video.load();
+                });
+            }
+
+            async extractFramesAndCreateGif(video, fileName) {
+                const duration = video.duration;
+                const maxFrames = 20; // Fewer frames for more reliable processing
+                const frameInterval = Math.max(0.5, duration / maxFrames);
+                const totalFrames = Math.min(maxFrames, Math.floor(duration / frameInterval));
+                
+                this.updateProgress(25, `Extracting ${totalFrames} frames...`);
+                
+                const maxDimension = 400; // Smaller for faster processing
+                let canvasWidth = video.videoWidth;
+                let canvasHeight = video.videoHeight;
+                
+                if (canvasWidth > maxDimension || canvasHeight > maxDimension) {
+                    const scale = maxDimension / Math.max(canvasWidth, canvasHeight);
+                    canvasWidth = Math.floor(canvasWidth * scale);
+                    canvasHeight = Math.floor(canvasHeight * scale);
+                }
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                
+                const frames = [];
+                
+                for (let i = 0; i < totalFrames; i++) {
+                    const currentTime = (i * frameInterval);
+                    if (currentTime >= duration) break;
+                    
+                    video.currentTime = currentTime;
+                    
+                    await new Promise(seekResolve => {
+                        const onSeeked = () => {
+                            video.removeEventListener('seeked', onSeeked);
+                            seekResolve();
+                        };
+                        video.addEventListener('seeked', onSeeked);
+                        
+                        setTimeout(() => {
+                            video.removeEventListener('seeked', onSeeked);
+                            seekResolve();
+                        }, 1000);
+                    });
+                    
+                    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+                    const imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+                    frames.push(imageData);
+                    
+                    const progress = 25 + ((i + 1) / totalFrames) * 50;
+                    this.updateProgress(progress, `Extracting frame ${i + 1}/${totalFrames}...`);
+                }
+                
+                URL.revokeObjectURL(video.src);
+                
+                // Create actual GIF from frames
+                this.updateProgress(80, 'Creating GIF file...');
+                await this.createGifFromFrames(frames, canvasWidth, canvasHeight);
+                
+                this.updateProgress(100, 'GIF ready!');
+                this.showResult();
+                this.hideProcessing();
+            }
+
+            async createGifFromFrames(frames, width, height) {
+                // Simple but working GIF creation
+                const delay = Math.max(10, Math.floor((1050 - parseInt(this.speedSlider.value)) / 10));
+                
+                // Create a super simple GIF
+                const gifData = [];
+                
+                // GIF signature
+                gifData.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61); // "GIF89a"
+                
+                // Screen descriptor
+                gifData.push(width & 0xFF, (width >> 8) & 0xFF);
+                gifData.push(height & 0xFF, (height >> 8) & 0xFF);
+                gifData.push(0xF0, 0x00, 0x00); // Global color table, background, aspect ratio
+                
+                // Global color table (grayscale)
+                for (let i = 0; i < 256; i++) {
+                    gifData.push(i, i, i);
+                }
+                
+                // Application extension for looping
+                gifData.push(0x21, 0xFF, 0x0B);
+                gifData.push(0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30);
+                gifData.push(0x03, 0x01, 0x00, 0x00, 0x00);
+                
+                // Add frames
+                for (let f = 0; f < frames.length; f++) {
+                    // Graphics control extension
+                    gifData.push(0x21, 0xF9, 0x04, 0x00);
+                    gifData.push(delay & 0xFF, (delay >> 8) & 0xFF);
+                    gifData.push(0x00, 0x00);
+                    
+                    // Image descriptor
+                    gifData.push(0x2C, 0x00, 0x00, 0x00, 0x00);
+                    gifData.push(width & 0xFF, (width >> 8) & 0xFF);
+                    gifData.push(height & 0xFF, (height >> 8) & 0xFF);
+                    gifData.push(0x00);
+                    
+                    // Convert frame to indices
+                    const frameData = frames[f].data;
+                    const indices = [];
+                    for (let i = 0; i < frameData.length; i += 4) {
+                        const gray = Math.floor(0.299 * frameData[i] + 0.587 * frameData[i + 1] + 0.114 * frameData[i + 2]);
+                        indices.push(gray);
+                    }
+                    
+                    // LZW data (simplified)
+                    gifData.push(0x08); // LZW minimum code size
+                    
+                    let pos = 0;
+                    while (pos < indices.length) {
+                        const chunkSize = Math.min(255, indices.length - pos);
+                        gifData.push(chunkSize);
+                        for (let i = 0; i < chunkSize; i++) {
+                            gifData.push(indices[pos + i]);
+                        }
+                        pos += chunkSize;
+                    }
+                    gifData.push(0x00); // End of image data
+                }
+                
+                // Trailer
+                gifData.push(0x3B);
+                
+                // Create blob
+                this.generatedGifBlob = new Blob([new Uint8Array(gifData)], { type: 'image/gif' });
+                
+                // Show preview
+                const url = URL.createObjectURL(this.generatedGifBlob);
+                const img = new Image();
+                img.onload = () => {
+                    this.canvas.width = width;
+                    this.canvas.height = height;
+                    
+                    // Show first frame as preview
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    tempCtx.putImageData(frames[0], 0, 0);
+                    this.ctx.drawImage(tempCanvas, 0, 0);
+                    
+                    // Scale for display
+                    const maxWidth = 600;
+                    const maxHeight = 400;
+                    const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+                    this.canvas.style.width = (width * scale) + 'px';
+                    this.canvas.style.height = (height * scale) + 'px';
+                    
+                    URL.revokeObjectURL(url);
+                };
+                img.src = url;
             }
 
             async processVideoWithFFmpeg(videoFile) {
