@@ -546,33 +546,29 @@
                 
                 const duration = video.duration;
                 
-                // Validate video properties
+                console.log(`Video duration: ${duration}s, dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                
+                // Handle infinite duration by using a fixed extraction approach
+                let extractionMethod = 'time-based';
+                let maxFrames = 25;
+                
                 if (!duration || duration <= 0 || !isFinite(duration)) {
-                    throw new Error(`Invalid video duration: ${duration}`);
+                    console.warn(`Invalid duration (${duration}), using frame-step method`);
+                    extractionMethod = 'step-based';
+                    maxFrames = 30; // Extract more frames when we can't use time
                 }
                 
                 if (!video.videoWidth || !video.videoHeight || video.videoWidth <= 0 || video.videoHeight <= 0) {
                     throw new Error(`Invalid video dimensions: ${video.videoWidth}x${video.videoHeight}`);
                 }
                 
-                console.log(`Video duration: ${duration}s, dimensions: ${video.videoWidth}x${video.videoHeight}`);
-                
                 const quality = this.qualitySelect.value;
                 
                 // Adjust frame count based on quality
-                let maxFrames;
                 switch(quality) {
-                    case 'fast': maxFrames = 15; break;
-                    case 'balanced': maxFrames = 25; break;
-                    case 'high': maxFrames = 40; break;
-                    default: maxFrames = 25;
-                }
-                
-                const frameInterval = duration / maxFrames;
-                
-                // Validate frame interval
-                if (!isFinite(frameInterval) || frameInterval <= 0) {
-                    throw new Error(`Invalid frame interval: ${frameInterval}`);
+                    case 'fast': maxFrames = Math.min(maxFrames, 15); break;
+                    case 'balanced': maxFrames = Math.min(maxFrames, 25); break;
+                    case 'high': maxFrames = Math.min(maxFrames, 40); break;
                 }
                 
                 // Set canvas size
@@ -593,57 +589,12 @@
                 
                 this.frames = [];
                 
-                for (let i = 0; i < maxFrames; i++) {
-                    const currentTime = i * frameInterval;
-                    
-                    // Validate currentTime before setting
-                    if (!isFinite(currentTime) || currentTime < 0 || currentTime > duration) {
-                        console.warn(`Skipping invalid currentTime: ${currentTime}`);
-                        continue;
-                    }
-                    
-                    const progress = 30 + (i / maxFrames) * 60;
-                    this.updateProgress(progress, `Extracting frame ${i + 1}/${maxFrames} for GIF...`);
-
-                    try {
-                        await new Promise((resolve, reject) => {
-                            const timeout = setTimeout(() => {
-                                reject(new Error('Seek timeout'));
-                            }, 5000);
-                            
-                            video.onseeked = () => {
-                                clearTimeout(timeout);
-                                try {
-                                    ctx.drawImage(video, 0, 0, width, height);
-                                    const imageData = ctx.getImageData(0, 0, width, height);
-                                    
-                                    this.frames.push({
-                                        imageData: imageData,
-                                        width: width,
-                                        height: height
-                                    });
-                                    
-                                    resolve();
-                                } catch (error) {
-                                    reject(error);
-                                }
-                            };
-                            
-                            video.onerror = () => {
-                                clearTimeout(timeout);
-                                reject(new Error('Video seek error'));
-                            };
-                            
-                            console.log(`Setting currentTime to: ${currentTime}`);
-                            video.currentTime = currentTime;
-                        });
-                    } catch (error) {
-                        console.warn(`Failed to extract frame ${i}: ${error.message}`);
-                        // Continue with next frame instead of failing completely
-                        continue;
-                    }
-                    
-                    await new Promise(resolve => setTimeout(resolve, 10));
+                if (extractionMethod === 'time-based') {
+                    // Use time-based extraction for valid duration
+                    await this.extractByTime(video, canvas, ctx, width, height, maxFrames, duration);
+                } else {
+                    // Use step-based extraction for invalid duration
+                    await this.extractBySteps(video, canvas, ctx, width, height, maxFrames);
                 }
                 
                 if (this.frames.length === 0) {
@@ -651,6 +602,113 @@
                 }
                 
                 console.log(`Successfully extracted ${this.frames.length} frames for GIF`);
+            }
+
+            async extractByTime(video, canvas, ctx, width, height, maxFrames, duration) {
+                const frameInterval = duration / maxFrames;
+                
+                for (let i = 0; i < maxFrames; i++) {
+                    const currentTime = i * frameInterval;
+                    
+                    if (!isFinite(currentTime) || currentTime < 0 || currentTime > duration) {
+                        continue;
+                    }
+                    
+                    const progress = 30 + (i / maxFrames) * 60;
+                    this.updateProgress(progress, `Extracting frame ${i + 1}/${maxFrames} (time-based)...`);
+
+                    try {
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => reject(new Error('Seek timeout')), 3000);
+                            
+                            video.onseeked = () => {
+                                clearTimeout(timeout);
+                                try {
+                                    ctx.drawImage(video, 0, 0, width, height);
+                                    const imageData = ctx.getImageData(0, 0, width, height);
+                                    this.frames.push({ imageData, width, height });
+                                    resolve();
+                                } catch (error) {
+                                    reject(error);
+                                }
+                            };
+                            
+                            video.currentTime = currentTime;
+                        });
+                    } catch (error) {
+                        console.warn(`Failed to extract frame ${i}: ${error.message}`);
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+
+            async extractBySteps(video, canvas, ctx, width, height, maxFrames) {
+                // For infinite duration videos, try to extract frames by playing and stepping
+                console.log('Using step-based extraction for infinite duration video');
+                
+                video.currentTime = 0;
+                await new Promise(resolve => {
+                    video.onseeked = resolve;
+                    video.onerror = resolve;
+                });
+                
+                // Extract first frame
+                try {
+                    ctx.drawImage(video, 0, 0, width, height);
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    this.frames.push({ imageData, width, height });
+                    this.updateProgress(40, `Extracted frame 1/${maxFrames} (step-based)...`);
+                } catch (error) {
+                    console.error('Failed to extract first frame:', error);
+                }
+                
+                // Try to step through the video
+                for (let i = 1; i < maxFrames && i < 60; i++) { // Max 60 attempts
+                    const progress = 40 + (i / maxFrames) * 50;
+                    this.updateProgress(progress, `Extracting frame ${i + 1}/${maxFrames} (step-based)...`);
+                    
+                    try {
+                        // Try small time increments
+                        const stepTime = i * 0.1; // 100ms steps
+                        
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => resolve(), 2000); // Don't wait too long
+                            
+                            video.onseeked = () => {
+                                clearTimeout(timeout);
+                                resolve();
+                            };
+                            
+                            video.onerror = () => {
+                                clearTimeout(timeout);
+                                resolve();
+                            };
+                            
+                            video.currentTime = stepTime;
+                        });
+                        
+                        // Extract frame
+                        ctx.drawImage(video, 0, 0, width, height);
+                        const imageData = ctx.getImageData(0, 0, width, height);
+                        this.frames.push({ imageData, width, height });
+                        
+                    } catch (error) {
+                        console.warn(`Failed to extract step frame ${i}: ${error.message}`);
+                        // Continue trying other frames
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // If we still don't have enough frames, duplicate the existing ones
+                if (this.frames.length > 0 && this.frames.length < 5) {
+                    const originalFrames = [...this.frames];
+                    while (this.frames.length < 10) {
+                        this.frames.push(...originalFrames);
+                    }
+                    console.log(`Duplicated frames to create ${this.frames.length} total frames`);
+                }
             }
 
             startGifPreview() {
