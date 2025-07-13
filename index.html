@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic GIF Creator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .magic-box {
+            border: 3px dashed #ffd700;
+            border-radius: 20px;
+            padding: 3rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .magic-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(255, 215, 0, 0.3);
+            border-color: #ffed4e;
+        }
+
+        .magic-box.dragover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffed4e;
+            transform: scale(1.02);
+        }
+
+        .magic-box::before {
+            content: '✨';
+            position: absolute;
+            font-size: 2rem;
+            top: 10px;
+            left: 10px;
+            animation: sparkle 2s infinite;
+        }
+
+        .magic-box::after {
+            content: '✨';
+            position: absolute;
+            font-size: 1.5rem;
+            bottom: 10px;
+            right: 10px;
+            animation: sparkle 2s infinite 1s;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.3; transform: rotate(0deg); }
+            50% { opacity: 1; transform: rotate(180deg); }
+        }
+
+        .drop-text {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .drop-hint {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-bottom: 1rem;
+        }
+
+        .controls {
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .speed-slider {
+            width: 200px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #ffd700;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .result-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .gif-preview {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .download-btn {
+            margin-top: 1rem;
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .processing {
+            font-size: 1.2rem;
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #ffd700;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            text-align: center;
+        }
+
+        .format-info {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        .format-supported {
+            color: #90EE90;
+        }
+
+        .format-limited {
+            color: #FFD700;
+        }
+
+        .format-unsupported {
+            color: #FF6B6B;
+        }
+
+        .retry-btn {
+            margin: 1rem;
+            padding: 8px 16px;
+            background: rgba(255, 215, 0, 0.2);
+            border: 1px solid #ffd700;
+            border-radius: 15px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .retry-btn:hover {
+            background: rgba(255, 215, 0, 0.3);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Magic GIF Creator</h1>
+        
+        <div class="magic-box" id="dropZone">
+            <div class="drop-text">Drop your magic here!</div>
+            <div class="drop-hint">Images (for sequence) or Video file</div>
+            <div class="drop-hint">Click to browse files</div>
+        </div>
+
+        <input type="file" id="fileInput" multiple accept="image/*,video/*">
+
+        <div class="format-info" id="formatInfo" style="display: none;">
+            <strong>📹 Video Format Support:</strong><br>
+            <span class="format-supported">✅ Fully Supported:</span> MP4 (H.264), WebM, OGV<br>
+            <span class="format-limited">⚠️ Sometimes Works:</span> MOV, M4V (depends on codec)<br>
+            <span class="format-unsupported">❌ Not Supported:</span> AVI, MKV, FLV, WMV, HEVC/H.265<br><br>
+            <strong>💡 Quick Fix:</strong> Use a free converter like <a href="https://cloudconvert.com" target="_blank" style="color: #ffd700;">CloudConvert</a> or <a href="https://handbrake.fr" target="_blank" style="color: #ffd700;">HandBrake</a> to convert to MP4 (H.264)
+            <button class="retry-btn" onclick="magicGifApp.resetApp()">Try Another File</button>
+        </div>
+
+        <div class="processing" id="processing">
+            <div class="spinner"></div>
+            Creating your magic GIF...
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Initializing...</div>
+            </div>
+        </div>
+
+        <div class="controls" id="controls">
+            <div class="speed-control">
+                <span>🐌 Slow</span>
+                <input type="range" class="speed-slider" id="speedSlider" min="50" max="1000" value="200">
+                <span>Fast 🚀</span>
+            </div>
+        </div>
+
+        <div class="result-container" id="resultContainer">
+            <canvas class="gif-preview" id="gifCanvas"></canvas>
+            <br>
+            <a href="#" class="download-btn" id="downloadBtn">Download Magic GIF ✨</a>
+        </div>
+    </div>
+
+    <script>
+        class MagicGifCreator {
+            constructor() {
+                this.dropZone = document.getElementById('dropZone');
+                this.fileInput = document.getElementById('fileInput');
+                this.controls = document.getElementById('controls');
+                this.processing = document.getElementById('processing');
+                this.resultContainer = document.getElementById('resultContainer');
+                this.canvas = document.getElementById('gifCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.speedSlider = document.getElementById('speedSlider');
+                this.downloadBtn = document.getElementById('downloadBtn');
+                this.progressFill = document.getElementById('progressFill');
+                this.progressText = document.getElementById('progressText');
+                this.formatInfo = document.getElementById('formatInfo');
+                
+                this.frames = [];
+                this.currentFrame = 0;
+                this.animationId = null;
+                this.lastFrameTime = 0;
+                this.lastFile = null;
+                
+                this.initEventListeners();
+            }
+
+            initEventListeners() {
+                // Drag and drop
+                this.dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.dropZone.classList.add('dragover');
+                });
+
+                this.dropZone.addEventListener('dragleave', () => {
+                    this.dropZone.classList.remove('dragover');
+                });
+
+                this.dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.dropZone.classList.remove('dragover');
+                    this.handleFiles(e.dataTransfer.files);
+                });
+
+                // Click to browse
+                this.dropZone.addEventListener('click', () => {
+                    this.fileInput.click();
+                });
+
+                this.fileInput.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+
+                // Speed control
+                this.speedSlider.addEventListener('input', () => {
+                    this.updateAnimationSpeed();
+                });
+
+                // Download
+                this.downloadBtn.addEventListener('click', () => {
+                    this.downloadGif();
+                });
+            }
+
+            async handleFiles(files) {
+                if (files.length === 0) return;
+
+                this.showProcessing();
+                
+                const firstFile = files[0];
+                this.lastFile = firstFile;
+                
+                console.log('File details:', {
+                    name: firstFile.name,
+                    type: firstFile.type,
+                    size: firstFile.size
+                });
+                
+                if (firstFile.type.startsWith('video/')) {
+                    const fileExt = firstFile.name.toLowerCase().split('.').pop();
+                    const isLikelySupported = this.checkVideoCompatibility(firstFile.type, fileExt);
+                    
+                    if (!isLikelySupported) {
+                        this.showFormatWarning(fileExt);
+                        this.hideProcessing();
+                        return;
+                    }
+                    
+                    try {
+                        await this.processVideo(firstFile);
+                    } catch (error) {
+                        console.error('Video processing failed:', error);
+                        this.showFormatWarning(fileExt);
+                        this.hideProcessing();
+                    }
+                } else if (firstFile.type.startsWith('image/')) {
+                    await this.processImages(Array.from(files));
+                }
+            }
+
+            checkVideoCompatibility(mimeType, fileExtension) {
+                console.log('Checking compatibility:', { mimeType, fileExtension });
+                
+                const supportedMimes = [
+                    'video/mp4',
+                    'video/webm', 
+                    'video/ogg',
+                    'video/quicktime'
+                ];
+                
+                const supportedExtensions = ['mp4', 'webm', 'ogv', 'mov', 'm4v'];
+                const definitivelyUnsupported = ['avi', 'mkv', 'flv', 'wmv', 'f4v', 'asf'];
+                
+                if (definitivelyUnsupported.includes(fileExtension)) {
+                    console.log('Blocked unsupported format:', fileExtension);
+                    return false;
+                }
+                
+                if (fileExtension === 'mp4' || mimeType === 'video/mp4') {
+                    console.log('MP4 detected - allowing through');
+                    return true;
+                }
+                
+                const isSupported = supportedMimes.includes(mimeType) || supportedExtensions.includes(fileExtension);
+                console.log('Format check result:', isSupported);
+                return isSupported;
+            }
+
+            showFormatWarning(fileExtension) {
+                this.updateProgress(0, `${fileExtension.toUpperCase()} format detection issue`);
+                this.formatInfo.style.display = 'block';
+                
+                if (!this.formatInfo.querySelector('.force-try-btn')) {
+                    const forceBtn = document.createElement('button');
+                    forceBtn.className = 'retry-btn force-try-btn';
+                    forceBtn.textContent = 'Try Processing Anyway';
+                    forceBtn.style.marginLeft = '1rem';
+                    forceBtn.style.background = 'rgba(255, 165, 0, 0.3)';
+                    forceBtn.onclick = () => {
+                        this.formatInfo.style.display = 'none';
+                        this.forceProcessLastFile();
+                    };
+                    this.formatInfo.appendChild(forceBtn);
+                }
+                
+                this.formatInfo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            async forceProcessLastFile() {
+                if (this.lastFile) {
+                    this.showProcessing();
+                    try {
+                        await this.processVideo(this.lastFile);
+                    } catch (error) {
+                        console.error('Forced processing failed:', error);
+                        this.updateProgress(0, 'Processing failed - file may be corrupted or use unsupported codec');
+                        this.hideProcessing();
+                    }
+                }
+            }
+
+            async processVideo(videoFile) {
+                this.updateProgress(5, `Loading ${videoFile.name}...`);
+                
+                return new Promise((resolve, reject) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.crossOrigin = 'anonymous';
+                    
+                    const timeout = setTimeout(() => {
+                        URL.revokeObjectURL(video.src);
+                        this.updateProgress(0, `Timeout loading ${videoFile.name} - file might be too large or corrupted`);
+                        reject(new Error('Video loading timeout'));
+                    }, 45000);
+                    
+                    video.addEventListener('error', (e) => {
+                        clearTimeout(timeout);
+                        URL.revokeObjectURL(video.src);
+                        console.error('Video error:', e, video.error);
+                        
+                        const fileExt = videoFile.name.toLowerCase().split('.').pop();
+                        let errorMsg = 'Error loading video';
+                        let showFormatInfo = false;
+                        
+                        if (video.error) {
+                            switch(video.error.code) {
+                                case video.error.MEDIA_ERR_ABORTED:
+                                    errorMsg = 'Video loading was aborted';
+                                    break;
+                                case video.error.MEDIA_ERR_NETWORK:
+                                    errorMsg = 'Network error loading video';
+                                    break;
+                                case video.error.MEDIA_ERR_DECODE:
+                                    errorMsg = `${fileExt.toUpperCase()} codec not supported`;
+                                    showFormatInfo = true;
+                                    break;
+                                case video.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                                    errorMsg = `${fileExt.toUpperCase()} format not supported`;
+                                    showFormatInfo = true;
+                                    break;
+                            }
+                        }
+                        
+                        this.updateProgress(0, errorMsg);
+                        
+                        if (showFormatInfo) {
+                            this.formatInfo.style.display = 'block';
+                            this.formatInfo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                        
+                        reject(e);
+                    });
+                    
+                    video.addEventListener('loadstart', () => {
+                        this.updateProgress(10, 'Video download started...');
+                    });
+                    
+                    video.addEventListener('progress', () => {
+                        this.updateProgress(12, 'Downloading video...');
+                    });
+                    
+                    video.addEventListener('canplay', () => {
+                        this.updateProgress(18, 'Video ready to play...');
+                    });
+                    
+                    video.addEventListener('loadedmetadata', () => {
+                        clearTimeout(timeout);
+                        this.updateProgress(20, 'Video loaded! Analyzing...');
+                        
+                        if (!video.videoWidth || !video.videoHeight) {
+                            this.updateProgress(0, 'Invalid video - no video track found');
+                            reject(new Error('No video track'));
+                            return;
+                        }
+                        
+                        const duration = video.duration;
+                        if (!duration || duration <= 0) {
+                            this.updateProgress(0, 'Invalid video duration');
+                            reject(new Error('Invalid duration'));
+                            return;
+                        }
+                        
+                        this.extractFramesFromVideo(video, duration, videoFile.name).then(resolve).catch(reject);
+                    });
+                    
+                    video.src = URL.createObjectURL(videoFile);
+                    video.load();
+                });
+            }
+
+            async extractFramesFromVideo(video, duration, fileName) {
+                const maxFrames = 25;
+                const frameInterval = Math.max(0.5, duration / maxFrames);
+                const totalFrames = Math.min(maxFrames, Math.floor(duration / frameInterval));
+                
+                this.updateProgress(25, `Extracting ${totalFrames} frames from ${fileName}...`);
+                
+                const maxDimension = 500;
+                let canvasWidth = video.videoWidth;
+                let canvasHeight = video.videoHeight;
+                
+                if (canvasWidth > maxDimension || canvasHeight > maxDimension) {
+                    const scale = maxDimension / Math.max(canvasWidth, canvasHeight);
+                    canvasWidth = Math.floor(canvasWidth * scale);
+                    canvasHeight = Math.floor(canvasHeight * scale);
+                }
+                
+                canvasWidth = canvasWidth % 2 === 0 ? canvasWidth : canvasWidth - 1;
+                canvasHeight = canvasHeight % 2 === 0 ? canvasHeight : canvasHeight - 1;
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                
+                for (let i = 0; i < totalFrames; i++) {
+                    const currentTime = (i * frameInterval);
+                    if (currentTime >= duration) break;
+                    
+                    video.currentTime = currentTime;
+                    
+                    await new Promise(seekResolve => {
+                        let resolved = false;
+                        
+                        const onSeeked = () => {
+                            if (!resolved) {
+                                resolved = true;
+                                video.removeEventListener('seeked', onSeeked);
+                                video.removeEventListener('error', onError);
+                                seekResolve();
+                            }
+                        };
+                        
+                        const onError = () => {
+                            if (!resolved) {
+                                resolved = true;
+                                video.removeEventListener('seeked', onSeeked);
+                                video.removeEventListener('error', onError);
+                                seekResolve();
+                            }
+                        };
+                        
+                        video.addEventListener('seeked', onSeeked);
+                        video.addEventListener('error', onError);
+                        
+                        setTimeout(() => {
+                            if (!resolved) {
+                                resolved = true;
+                                video.removeEventListener('seeked', onSeeked);
+                                video.removeEventListener('error', onError);
+                                seekResolve();
+                            }
+                        }, 3000);
+                    });
+                    
+                    try {
+                        ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+                        
+                        this.frames.push({
+                            imageData: ctx.getImageData(0, 0, canvasWidth, canvasHeight),
+                            width: canvasWidth,
+                            height: canvasHeight
+                        });
+                    } catch (drawError) {
+                        console.warn('Frame draw error:', drawError);
+                    }
+                    
+                    const progress = 25 + ((i + 1) / totalFrames) * 65;
+                    this.updateProgress(progress, `Processing frame ${i + 1}/${totalFrames}`);
+                    
+                    if (i % 3 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 20));
+                    }
+                }
+                
+                URL.revokeObjectURL(video.src);
+                
+                if (this.frames.length === 0) {
+                    throw new Error('No frames extracted');
+                }
+                
+                this.updateProgress(100, 'Video processing complete!');
+                
+                setTimeout(() => {
+                    this.setupCanvas();
+                    this.startAnimation();
+                }, 300);
+            }
+
+            async processImages(imageFiles) {
+                this.frames = [];
+                this.updateProgress(0, 'Processing images...');
+                
+                const maxFrames = 60;
+                const maxDimension = 800;
+                let filesToProcess = Array.from(imageFiles).filter(file => file.type.startsWith('image/'));
+                
+                if (filesToProcess.length > maxFrames) {
+                    const step = filesToProcess.length / maxFrames;
+                    filesToProcess = filesToProcess.filter((_, index) => index % Math.ceil(step) === 0);
+                }
+                
+                for (let i = 0; i < filesToProcess.length; i++) {
+                    const file = filesToProcess[i];
+                    
+                    await new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            let canvasWidth = img.width;
+                            let canvasHeight = img.height;
+                            
+                            if (canvasWidth > maxDimension || canvasHeight > maxDimension) {
+                                const scale = maxDimension / Math.max(canvasWidth, canvasHeight);
+                                canvasWidth *= scale;
+                                canvasHeight *= scale;
+                            }
+                            
+                            canvas.width = canvasWidth;
+                            canvas.height = canvasHeight;
+                            ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                            
+                            this.frames.push({
+                                imageData: ctx.getImageData(0, 0, canvasWidth, canvasHeight),
+                                width: canvasWidth,
+                                height: canvasHeight
+                            });
+                            
+                            const progress = ((i + 1) / filesToProcess.length) * 90;
+                            this.updateProgress(progress, `Processing image ${i + 1}/${filesToProcess.length}`);
+                            
+                            URL.revokeObjectURL(img.src);
+                            resolve();
+                        };
+                        img.src = URL.createObjectURL(file);
+                    });
+                }
+                
+                this.updateProgress(100, 'Finalizing magic...');
+                setTimeout(() => {
+                    this.setupCanvas();
+                    this.startAnimation();
+                }, 200);
+            }
+
+            setupCanvas() {
+                if (this.frames.length === 0) return;
+                
+                const firstFrame = this.frames[0];
+                this.canvas.width = firstFrame.width;
+                this.canvas.height = firstFrame.height;
+                
+                const maxWidth = 600;
+                const maxHeight = 400;
+                const scale = Math.min(maxWidth / firstFrame.width, maxHeight / firstFrame.height, 1);
+                
+                this.canvas.style.width = (firstFrame.width * scale) + 'px';
+                this.canvas.style.height = (firstFrame.height * scale) + 'px';
+            }
+
+            startAnimation() {
+                this.hideProcessing();
+                this.showControls();
+                this.showResult();
+                this.updateAnimationSpeed();
+            }
+
+            updateAnimationSpeed() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                this.animate();
+            }
+
+            animate() {
+                const currentTime = Date.now();
+                const frameDelay = parseInt(this.speedSlider.value);
+                
+                if (currentTime - this.lastFrameTime >= frameDelay) {
+                    if (this.frames.length > 0) {
+                        const frame = this.frames[this.currentFrame];
+                        this.ctx.putImageData(frame.imageData, 0, 0);
+                        
+                        this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+                        this.lastFrameTime = currentTime;
+                    }
+                }
+                
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+
+            showProcessing() {
+                this.processing.style.display = 'block';
+                this.controls.style.display = 'none';
+                this.resultContainer.style.display = 'none';
+            }
+
+            hideProcessing() {
+                this.processing.style.display = 'none';
+            }
+
+            showControls() {
+                this.controls.style.display = 'block';
+            }
+
+            showResult() {
+                this.resultContainer.style.display = 'block';
+            }
+
+            downloadGif() {
+                const link = document.createElement('a');
+                link.download = 'magic-gif.png';
+                link.href = this.canvas.toDataURL();
+                link.click();
+            }
+
+            updateProgress(percentage, message) {
+                this.progressFill.style.width = percentage + '%';
+                this.progressText.textContent = message;
+            }
+
+            resetApp() {
+                this.frames = [];
+                this.currentFrame = 0;
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                this.hideProcessing();
+                this.controls.style.display = 'none';
+                this.resultContainer.style.display = 'none';
+                this.formatInfo.style.display = 'none';
+            }
+        }
+
+        const magicGifApp = new MagicGifCreator();
+        window.magicGifApp = magicGifApp;
+    </script>
+</body>
+</html>
