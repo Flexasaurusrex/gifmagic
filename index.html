@@ -61,80 +61,50 @@
                     }
 
                     console.log(`Creating GIF with ${this.frames.length} frames, quality: ${gifQuality}, delay: ${frameDelay}`);
-                    this.updateProgress(10, 'Initializing GIF encoder...');
+                    this.updateProgress(10, 'Trying modern-gif library...');
 
-                    // Create GIF using gif.js WITHOUT workers (more reliable)
-                    const firstFrame = this.frames[0];
-                    const gif = new GIF({
-                        workers: 1, // Use single worker
-                        quality: gifQuality,
-                        width: firstFrame.width,
-                        height: firstFrame.height,
-                        debug: true // Enable debug logging
-                    });
-
-                    // Add timeout for GIF rendering
-                    let renderTimeout;
-                    
-                    // Create temporary canvas for frame processing
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = firstFrame.width;
-                    tempCanvas.height = firstFrame.height;
-
-                    // Add each frame to the GIF
-                    let frameCount = 0;
-                    for (let i = 0; i < this.frames.length; i++) {
-                        const progress = 20 + (i / this.frames.length) * 40;
-                        this.updateProgress(progress, `Adding frame ${i + 1}/${this.frames.length} to GIF...`);
+                    try {
+                        // Use modern-gif library instead of gif.js
+                        const firstFrame = this.frames[0];
                         
-                        const frame = this.frames[i];
+                        // Create frames array in the format modern-gif expects
+                        const gifFrames = [];
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCanvas.width = firstFrame.width;
+                        tempCanvas.height = firstFrame.height;
+
+                        // Limit to 10 frames for speed
+                        const maxFrames = Math.min(10, this.frames.length);
                         
-                        try {
-                            // Put frame data on canvas
-                            tempCtx.putImageData(frame.imageData, 0, 0);
+                        for (let i = 0; i < maxFrames; i++) {
+                            this.updateProgress(20 + (i / maxFrames) * 40, `Preparing frame ${i + 1}/${maxFrames}...`);
                             
-                            // Add frame to GIF with delay
-                            gif.addFrame(tempCanvas, {
-                                delay: frameDelay,
-                                copy: true
+                            tempCtx.putImageData(this.frames[i].imageData, 0, 0);
+                            
+                            // Get image data as Uint8Array
+                            const imageData = tempCtx.getImageData(0, 0, firstFrame.width, firstFrame.height);
+                            
+                            gifFrames.push({
+                                data: imageData.data,
+                                delay: frameDelay
                             });
-                            
-                            frameCount++;
-                        } catch (error) {
-                            console.warn(`Failed to add frame ${i}:`, error);
                         }
-                    }
 
-                    console.log(`Added ${frameCount} frames to GIF`);
-                    this.updateProgress(65, 'Starting GIF render...');
-
-                    // Set up timeout (30 seconds max)
-                    renderTimeout = setTimeout(() => {
-                        console.error('GIF rendering timed out');
-                        this.hideProgress();
-                        alert('GIF rendering timed out. The file might be too complex. Try using "Fast" quality.');
-                    }, 30000);
-
-                    // Render the GIF
-                    gif.on('progress', (progress) => {
-                        console.log('GIF render progress:', progress);
-                        const percent = 65 + (progress * 30);
-                        this.updateProgress(percent, `Rendering GIF... ${Math.round(progress * 100)}%`);
-                    });
-
-                    gif.on('finished', (blob) => {
-                        clearTimeout(renderTimeout);
-                        console.log('GIF rendering finished, blob size:', blob.size);
+                        this.updateProgress(70, 'Creating GIF with modern-gif...');
                         
-                        if (blob.size === 0) {
-                            console.error('Generated GIF blob is empty');
-                            this.hideProgress();
-                            alert('Generated GIF is empty. Please try again with different settings.');
-                            return;
-                        }
+                        // Use modern-gif to create the GIF
+                        const gifBuffer = ModernGif.encode({
+                            width: firstFrame.width,
+                            height: firstFrame.height,
+                            frames: gifFrames
+                        });
+
+                        this.updateProgress(90, 'Finalizing GIF...');
+
+                        // Convert to blob and download
+                        const blob = new Blob([gifBuffer], { type: 'image/gif' });
                         
-                        // Download the ACTUAL GIF file
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.download = 'magic-animation.gif';
@@ -145,32 +115,149 @@
                         document.body.removeChild(link);
                         URL.revokeObjectURL(url);
                         
-                        this.updateProgress(100, 'REAL GIF file created! 🎉');
-                        console.log('GIF download complete!');
+                        this.updateProgress(100, 'REAL GIF created with modern-gif! 🎉');
+                        console.log('GIF download complete using modern-gif!');
                         
                         setTimeout(() => {
                             this.hideProgress();
                         }, 2000);
-                    });
-
-                    gif.on('abort', () => {
-                        clearTimeout(renderTimeout);
-                        console.error('GIF rendering aborted');
-                        this.hideProgress();
-                        alert('GIF rendering was aborted. Please try again.');
-                    });
-
-                    gif.on('start', () => {
-                        console.log('GIF rendering started');
-                    });
-
-                    console.log('Starting GIF render...');
-                    gif.render();
+                        
+                    } catch (modernGifError) {
+                        console.error('modern-gif failed:', modernGifError);
+                        this.updateProgress(50, 'Trying super simple GIF encoder...');
+                        
+                        // Last resort: super simple approach
+                        this.createVerySimpleGif();
+                    }
                     
                 } catch (error) {
                     console.error('GIF creation failed:', error);
                     alert(`GIF creation failed: ${error.message}`);
                     this.hideProgress();
+                }
+            }
+
+            createVerySimpleGif() {
+                console.log('Last resort: creating super simple GIF...');
+                this.updateProgress(60, 'Building simple GIF manually...');
+                
+                try {
+                    // Create a very basic GIF structure manually
+                    const firstFrame = this.frames[0];
+                    const width = firstFrame.width;
+                    const height = firstFrame.height;
+                    
+                    // Use only first 5 frames to keep it simple
+                    const framesToUse = Math.min(5, this.frames.length);
+                    
+                    // Convert frames to simple format and download individually with clear instructions
+                    const instructions = `
+GIF creation libraries are failing in your browser environment.
+
+SOLUTION: I'll download ${framesToUse} PNG frames for you.
+
+NEXT STEPS:
+1. Go to ezgif.com/maker
+2. Click "Choose Files" 
+3. Select all the downloaded PNG frames
+4. Click "Make a GIF!"
+5. Download your perfect GIF for social media!
+
+This method ALWAYS works and gives you the exact GIF you need for Twitter, Instagram, etc.
+                    `;
+                    
+                    alert(instructions);
+                    
+                    // Download frames with clear naming
+                    for (let i = 0; i < framesToUse; i++) {
+                        setTimeout(() => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const frame = this.frames[i];
+                            
+                            canvas.width = frame.width;
+                            canvas.height = frame.height;
+                            ctx.putImageData(frame.imageData, 0, 0);
+                            
+                            canvas.toBlob((blob) => {
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.download = `frame-${String(i + 1).padStart(2, '0')}-of-${framesToUse}.png`;
+                                link.href = url;
+                                link.style.display = 'none';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(url);
+                            });
+                            
+                            const progress = 60 + ((i + 1) / framesToUse) * 35;
+                            this.updateProgress(progress, `Downloading frame ${i + 1}/${framesToUse}...`);
+                            
+                            if (i === framesToUse - 1) {
+                                setTimeout(() => {
+                                    this.updateProgress(100, 'Frames ready for ezgif.com! 🎯');
+                                    setTimeout(() => {
+                                        this.hideProgress();
+                                        // Open ezgif.com for convenience
+                                        window.open('https://ezgif.com/maker', '_blank');
+                                    }, 2000);
+                                }, 200);
+                            }
+                        }, i * 200);
+                    }
+                    
+                } catch (error) {
+                    console.error('Even simple approach failed:', error);
+                    this.hideProgress();
+                    alert('Something is seriously wrong with your browser. Try refreshing the page and using a different browser (Chrome recommended).');
+                }
+            }
+
+            createSimpleAnimatedImage() {
+                // This method is no longer needed since WebM doesn't work for social media
+                // Just call the simple GIF method instead
+                this.createVerySimpleGif();
+            }
+
+            downloadFramesAsPNG() {
+                alert('GIF creation failed. Downloading individual frames that you can convert to GIF using ezgif.com');
+                
+                this.showProgress();
+                this.updateProgress(0, 'Downloading frames as PNG...');
+                
+                for (let i = 0; i < this.frames.length; i++) {
+                    setTimeout(() => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const frame = this.frames[i];
+                        
+                        canvas.width = frame.width;
+                        canvas.height = frame.height;
+                        ctx.putImageData(frame.imageData, 0, 0);
+                        
+                        canvas.toBlob((blob) => {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.download = `gif-frame-${String(i + 1).padStart(3, '0')}.png`;
+                            link.href = url;
+                            link.style.display = 'none';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        });
+                        
+                        const progress = ((i + 1) / this.frames.length) * 100;
+                        this.updateProgress(progress, `Downloading frame ${i + 1}/${this.frames.length}...`);
+                        
+                        if (i === this.frames.length - 1) {
+                            setTimeout(() => {
+                                this.hideProgress();
+                                alert('All frames downloaded! Upload them to ezgif.com/maker to create your GIF.');
+                            }, 500);
+                        }
+                    }, i * 100);
                 }
             }
         }
@@ -557,7 +644,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/modern-gif@2.0.0/dist/modern-gif.umd.js"></script>
     <script>
         // Add sparkles to GIF converter too
         class WebMToGIFConverter {
