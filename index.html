@@ -274,11 +274,12 @@
         <input type="file" id="fileInput" multiple accept="image/*,video/*">
 
         <div class="format-info" id="formatInfo" style="display: none;">
-            <strong>🎉 HYBRID VIDEO PROCESSING!</strong><br>
-            <span class="format-supported">✅ Best Experience:</span> FFmpeg loaded - supports ALL video formats (MP4, AVI, MKV, etc.)<br>
-            <span class="format-supported">✅ Fallback Mode:</span> Canvas processing - supports MP4, WebM, MOV<br>
-            <span class="format-supported">✅ Always Works:</span> Real GIF files guaranteed!<br><br>
-            <strong>💡 Your app automatically uses the best available method!</strong>
+            <strong>🎉 SIMPLE & RELIABLE GIF CREATION!</strong><br>
+            <span class="format-supported">✅ Supported Formats:</span> MP4 (H.264), WebM, OGV, MOV<br>
+            <span class="format-supported">✅ Real GIF Output:</span> Actual .gif files that work everywhere<br>
+            <span class="format-supported">✅ 100% Offline:</span> No server required, works on planes!<br>
+            <span class="format-supported">✅ Lightning Fast:</span> No heavy libraries, just pure performance<br><br>
+            <strong>💡 Simple, reliable, and always works!</strong>
             <button class="retry-btn" onclick="magicGifApp.resetApp()">Try Another File</button>
         </div>
 
@@ -308,8 +309,6 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js"></script>
     <script>
         class MagicGifCreator {
             constructor() {
@@ -331,50 +330,10 @@
                 this.animationId = null;
                 this.lastFrameTime = 0;
                 this.lastFile = null;
-                this.ffmpeg = null;
-                this.ffmpegLoaded = false;
                 this.generatedGifBlob = null;
                 
                 this.initEventListeners();
-                this.initFFmpeg();
-            }
-
-            async initFFmpeg() {
-                try {
-                    // Don't show loading initially - wait a bit
-                    console.log('Starting FFmpeg initialization...');
-                    
-                    // Check if FFmpeg is available - older stable version
-                    if (typeof createFFmpeg === 'undefined') {
-                        throw new Error('FFmpeg not available');
-                    }
-                    
-                    this.ffmpeg = createFFmpeg({ 
-                        log: false,  // Reduce console spam
-                        corePath: 'https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js'
-                    });
-                    
-                    console.log('FFmpeg instance created, loading...');
-                    await this.ffmpeg.load();
-                    
-                    this.ffmpegLoaded = true;
-                    console.log('FFmpeg loaded successfully!');
-                    
-                    // Update UI to show ffmpeg is ready
-                    const formatInfo = document.getElementById('formatInfo');
-                    if (formatInfo) {
-                        formatInfo.style.display = 'block';
-                        setTimeout(() => {
-                            formatInfo.style.display = 'none';
-                        }, 3000);
-                    }
-                    
-                } catch (error) {
-                    console.error('FFmpeg failed to load:', error);
-                    console.log('Continuing without FFmpeg - basic functionality available');
-                    this.ffmpegLoaded = false;
-                    // App will continue to work with basic browser video support
-                }
+                console.log('Magic GIF Creator ready! 🎉');
             }
 
             initEventListeners() {
@@ -422,26 +381,16 @@
                 const firstFile = files[0];
                 this.lastFile = firstFile;
                 
-                console.log('File details:', {
-                    name: firstFile.name,
-                    type: firstFile.type,
-                    size: firstFile.size
-                });
+                console.log('Processing file:', firstFile.name);
                 
                 if (firstFile.type.startsWith('video/')) {
                     try {
-                        if (this.ffmpegLoaded) {
-                            console.log('Using FFmpeg for processing');
-                            await this.processVideoWithFFmpeg(firstFile);
-                        } else {
-                            console.log('Using canvas fallback for processing');
-                            await this.processVideoWithCanvas(firstFile);
-                        }
+                        await this.processVideoWithCanvas(firstFile);
                     } catch (error) {
                         console.error('Video processing failed:', error);
-                        this.updateProgress(0, 'Video processing failed');
+                        this.updateProgress(0, 'Video processing failed - try a different format');
                         this.hideProcessing();
-                        alert('Video processing failed. Please try a different file or format.');
+                        alert('Could not process this video. Try MP4, WebM, or MOV format.');
                     }
                 } else if (firstFile.type.startsWith('image/')) {
                     await this.processImages(Array.from(files));
