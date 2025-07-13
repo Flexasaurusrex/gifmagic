@@ -30,6 +30,112 @@
             .main-container {
                 grid-template-columns: 1fr;
             }
+
+            async createAndDownloadRealGif() {
+                if (this.frames.length === 0) {
+                    alert('No frames to convert! Please process a video first.');
+                    return;
+                }
+
+                this.showProgress();
+                this.updateProgress(0, 'Creating REAL GIF file...');
+
+                try {
+                    const quality = this.qualitySelect.value;
+                    let gifQuality, frameDelay;
+                    
+                    switch(quality) {
+                        case 'fast': 
+                            gifQuality = 20; 
+                            frameDelay = 200; 
+                            break;
+                        case 'balanced': 
+                            gifQuality = 10; 
+                            frameDelay = 150; 
+                            break;
+                        case 'high': 
+                            gifQuality = 1; 
+                            frameDelay = 100; 
+                            break;
+                        default: 
+                            gifQuality = 10; 
+                            frameDelay = 150;
+                    }
+
+                    this.updateProgress(10, 'Initializing GIF encoder...');
+
+                    // Create GIF using gif.js
+                    const firstFrame = this.frames[0];
+                    const gif = new GIF({
+                        workers: 2,
+                        quality: gifQuality,
+                        width: firstFrame.width,
+                        height: firstFrame.height,
+                        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+                    });
+
+                    // Create temporary canvas for frame processing
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = firstFrame.width;
+                    tempCanvas.height = firstFrame.height;
+
+                    // Add each frame to the GIF
+                    for (let i = 0; i < this.frames.length; i++) {
+                        const progress = 20 + (i / this.frames.length) * 60;
+                        this.updateProgress(progress, `Adding frame ${i + 1}/${this.frames.length} to GIF...`);
+                        
+                        const frame = this.frames[i];
+                        
+                        // Put frame data on canvas
+                        tempCtx.putImageData(frame.imageData, 0, 0);
+                        
+                        // Add frame to GIF with delay
+                        gif.addFrame(tempCanvas, {
+                            delay: frameDelay,
+                            copy: true
+                        });
+                        
+                        // Small delay to prevent freezing
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+
+                    this.updateProgress(85, 'Rendering GIF file...');
+
+                    // Render the GIF
+                    gif.on('progress', (progress) => {
+                        const percent = 85 + (progress * 10);
+                        this.updateProgress(percent, `Rendering GIF... ${Math.round(progress * 100)}%`);
+                    });
+
+                    gif.on('finished', (blob) => {
+                        // Download the ACTUAL GIF file
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = 'converted-animation.gif';
+                        link.href = url;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                        
+                        this.updateProgress(100, 'REAL GIF file created! 🎉');
+                        console.log('ACTUAL GIF download complete!');
+                        
+                        setTimeout(() => {
+                            this.hideProgress();
+                        }, 2000);
+                    });
+
+                    gif.render();
+                    
+                } catch (error) {
+                    console.error('GIF creation failed:', error);
+                    alert(`REAL GIF creation failed: ${error.message}. Please try again.`);
+                    this.hideProgress();
+                }
+            }
         }
 
         .container {
@@ -466,7 +572,8 @@
 
                 // Download button
                 this.gifDownloadBtn.addEventListener('click', () => {
-                    this.createAndDownloadGif();
+                    console.log('GIF download button clicked!');
+                    this.createAndDownloadRealGif();
                 });
             }
 
