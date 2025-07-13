@@ -63,15 +63,19 @@
                     console.log(`Creating GIF with ${this.frames.length} frames, quality: ${gifQuality}, delay: ${frameDelay}`);
                     this.updateProgress(10, 'Initializing GIF encoder...');
 
-                    // Create GIF using gif.js
+                    // Create GIF using gif.js WITHOUT workers (more reliable)
                     const firstFrame = this.frames[0];
                     const gif = new GIF({
-                        workers: 2,
+                        workers: 1, // Use single worker
                         quality: gifQuality,
                         width: firstFrame.width,
-                        height: firstFrame.height
+                        height: firstFrame.height,
+                        debug: true // Enable debug logging
                     });
 
+                    // Add timeout for GIF rendering
+                    let renderTimeout;
+                    
                     // Create temporary canvas for frame processing
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
@@ -81,7 +85,7 @@
                     // Add each frame to the GIF
                     let frameCount = 0;
                     for (let i = 0; i < this.frames.length; i++) {
-                        const progress = 20 + (i / this.frames.length) * 60;
+                        const progress = 20 + (i / this.frames.length) * 40;
                         this.updateProgress(progress, `Adding frame ${i + 1}/${this.frames.length} to GIF...`);
                         
                         const frame = this.frames[i];
@@ -103,16 +107,32 @@
                     }
 
                     console.log(`Added ${frameCount} frames to GIF`);
-                    this.updateProgress(85, 'Rendering GIF file...');
+                    this.updateProgress(65, 'Starting GIF render...');
+
+                    // Set up timeout (30 seconds max)
+                    renderTimeout = setTimeout(() => {
+                        console.error('GIF rendering timed out');
+                        this.hideProgress();
+                        alert('GIF rendering timed out. The file might be too complex. Try using "Fast" quality.');
+                    }, 30000);
 
                     // Render the GIF
                     gif.on('progress', (progress) => {
-                        const percent = 85 + (progress * 10);
+                        console.log('GIF render progress:', progress);
+                        const percent = 65 + (progress * 30);
                         this.updateProgress(percent, `Rendering GIF... ${Math.round(progress * 100)}%`);
                     });
 
                     gif.on('finished', (blob) => {
+                        clearTimeout(renderTimeout);
                         console.log('GIF rendering finished, blob size:', blob.size);
+                        
+                        if (blob.size === 0) {
+                            console.error('Generated GIF blob is empty');
+                            this.hideProgress();
+                            alert('Generated GIF is empty. Please try again with different settings.');
+                            return;
+                        }
                         
                         // Download the ACTUAL GIF file
                         const url = URL.createObjectURL(blob);
@@ -134,9 +154,14 @@
                     });
 
                     gif.on('abort', () => {
+                        clearTimeout(renderTimeout);
                         console.error('GIF rendering aborted');
                         this.hideProgress();
                         alert('GIF rendering was aborted. Please try again.');
+                    });
+
+                    gif.on('start', () => {
+                        console.log('GIF rendering started');
                     });
 
                     console.log('Starting GIF render...');
