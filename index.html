@@ -746,7 +746,8 @@
 
             animate() {
                 const currentTime = Date.now();
-                const frameDelay = parseInt(this.speedSlider.value);
+                // Invert the slider so slow=slow and fast=fast!
+                const frameDelay = 1050 - parseInt(this.speedSlider.value);
                 
                 if (currentTime - this.lastFrameTime >= frameDelay) {
                     if (this.frames.length > 0) {
