@@ -545,6 +545,18 @@
                 const ctx = canvas.getContext('2d');
                 
                 const duration = video.duration;
+                
+                // Validate video properties
+                if (!duration || duration <= 0 || !isFinite(duration)) {
+                    throw new Error(`Invalid video duration: ${duration}`);
+                }
+                
+                if (!video.videoWidth || !video.videoHeight || video.videoWidth <= 0 || video.videoHeight <= 0) {
+                    throw new Error(`Invalid video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                }
+                
+                console.log(`Video duration: ${duration}s, dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                
                 const quality = this.qualitySelect.value;
                 
                 // Adjust frame count based on quality
@@ -557,6 +569,11 @@
                 }
                 
                 const frameInterval = duration / maxFrames;
+                
+                // Validate frame interval
+                if (!isFinite(frameInterval) || frameInterval <= 0) {
+                    throw new Error(`Invalid frame interval: ${frameInterval}`);
+                }
                 
                 // Set canvas size
                 const maxSize = quality === 'high' ? 600 : quality === 'balanced' ? 400 : 300;
@@ -578,27 +595,62 @@
                 
                 for (let i = 0; i < maxFrames; i++) {
                     const currentTime = i * frameInterval;
+                    
+                    // Validate currentTime before setting
+                    if (!isFinite(currentTime) || currentTime < 0 || currentTime > duration) {
+                        console.warn(`Skipping invalid currentTime: ${currentTime}`);
+                        continue;
+                    }
+                    
                     const progress = 30 + (i / maxFrames) * 60;
                     this.updateProgress(progress, `Extracting frame ${i + 1}/${maxFrames} for GIF...`);
 
-                    await new Promise((resolve) => {
-                        video.currentTime = currentTime;
-                        video.onseeked = () => {
-                            ctx.drawImage(video, 0, 0, width, height);
-                            const imageData = ctx.getImageData(0, 0, width, height);
+                    try {
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => {
+                                reject(new Error('Seek timeout'));
+                            }, 5000);
                             
-                            this.frames.push({
-                                imageData: imageData,
-                                width: width,
-                                height: height
-                            });
+                            video.onseeked = () => {
+                                clearTimeout(timeout);
+                                try {
+                                    ctx.drawImage(video, 0, 0, width, height);
+                                    const imageData = ctx.getImageData(0, 0, width, height);
+                                    
+                                    this.frames.push({
+                                        imageData: imageData,
+                                        width: width,
+                                        height: height
+                                    });
+                                    
+                                    resolve();
+                                } catch (error) {
+                                    reject(error);
+                                }
+                            };
                             
-                            resolve();
-                        };
-                    });
+                            video.onerror = () => {
+                                clearTimeout(timeout);
+                                reject(new Error('Video seek error'));
+                            };
+                            
+                            console.log(`Setting currentTime to: ${currentTime}`);
+                            video.currentTime = currentTime;
+                        });
+                    } catch (error) {
+                        console.warn(`Failed to extract frame ${i}: ${error.message}`);
+                        // Continue with next frame instead of failing completely
+                        continue;
+                    }
                     
                     await new Promise(resolve => setTimeout(resolve, 10));
                 }
+                
+                if (this.frames.length === 0) {
+                    throw new Error('No frames were successfully extracted');
+                }
+                
+                console.log(`Successfully extracted ${this.frames.length} frames for GIF`);
             }
 
             startGifPreview() {
