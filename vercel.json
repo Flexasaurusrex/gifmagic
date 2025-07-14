@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "functions": {
+    "api/convert-to-gif.js": {
+      "maxDuration": 30
+    }
+  },
+  "builds": [
+    {
+      "src": "api/convert-to-gif.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/convert-to-gif",
+      "dest": "/api/convert-to-gif.js"
+    }
+  ]
+}
