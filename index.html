@@ -1,4 +1,54 @@
-<!DOCTYPE html>
+<!-- Server-side GIF conversion - No more client-side issues! -->
+    <script>
+        // Professional server-side WebM to GIF conversion
+        window.convertWebMToGIF = async function(webmFile, quality = 'balanced', progressCallback) {
+            try {
+                console.log('🚀 Starting server-side GIF conversion...');
+                
+                if (progressCallback) progressCallback(5);
+                
+                // Create form data for upload
+                const formData = new FormData();
+                formData.append('video', webmFile);
+                formData.append('quality', quality);
+                
+                if (progressCallback) progressCallback(10);
+                console.log('📤 Uploading WebM file to conversion API...');
+                
+                // Send to our professional conversion API
+                const response = await fetch('/api/convert-to-gif', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `Server error: ${response.status}`);
+                }
+                
+                if (progressCallback) progressCallback(50);
+                console.log('⚡ Server processing video with real ffmpeg...');
+                
+                // Get the GIF blob
+                const gifBlob = await response.blob();
+                
+                if (gifBlob.type !== 'image/gif') {
+                    throw new Error('Server did not return a valid GIF file');
+                }
+                
+                if (progressCallback) progressCallback(100);
+                console.log('🎉 Professional GIF conversion completed!', gifBlob.size, 'bytes');
+                
+                return gifBlob;
+                
+            } catch (error) {
+                console.error('💥 Server-side conversion failed:', error);
+                throw error;
+            }
+        };
+        
+        console.log('✅ Server-side GIF converter loaded successfully');
+    </script><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -402,13 +452,13 @@
             <h2 class="tool-title">🎯 WebM to GIF</h2>
             
             <div class="ffmpeg-status" id="ffmpegStatus">
-                🔧 Loading animation preview + EzGIF converter...
+                🔧 Loading server-side GIF conversion...
             </div>
             
             <div class="magic-box gif-converter" id="gifDropZone">
                 <div class="sparkles" id="gifSparkles"></div>
                 <div class="magic-text">Drop Your WebM Here</div>
-                <div class="magic-subtitle">Preview animation + use embedded EzGIF converter!</div>
+                <div class="magic-subtitle">Server-side GIF conversion with real ffmpeg - just like EzGIF!</div>
                 <div class="supported-formats">
                     Accepts: <span class="format-badge">WebM</span> <span class="format-badge">MP4</span>
                 </div>
@@ -436,85 +486,19 @@
                         <option value="high">💎 High Quality (600px, 12fps)</option>
                     </select>
                 </div>
-                <button id="gifDownloadBtn" class="download-btn">🎬 Preview + Show EzGIF Converter ✨</button>
+                <button id="gifDownloadBtn" class="download-btn">🎯 Create Real GIF with Server ✨</button>
                 
-                <!-- Animated Display Area with EzGIF Converter -->
+                <!-- Animated Display Area with Server-Side Conversion -->
                 <div id="gifDisplayContainer" style="display: none; margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                     <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;">
                         🎉 Your animation preview is ready!
                     </div>
                     <img id="createdGif" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 20px;" alt="Created Animation">
-                    
-                    <!-- EzGIF Embedded Converter -->
-                    <div style="background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; margin-top: 20px;">
-                        <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;">
-                            🎯 Convert Your WebM to Perfect GIF (EzGIF)
-                        </div>
-                        <div style="color: rgba(255,255,255,0.9); margin-bottom: 15px;">
-                            Drop your WebM file from the left tool into the converter below:
-                        </div>
-                        
-                        <!-- EzGIF Video to GIF Converter - Compact Size -->
-                        <iframe 
-                            id="ezgif-widget"
-                            src="https://ezgif.com/video-to-gif"
-                            style="width: 100%; height: 350px; border: none; border-radius: 10px; background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.2);"
-                            title="WebM to GIF Converter - EzGIF"
-                            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox">
-                        </iframe>
-                        
-                        <!-- Expand/Collapse Button -->
-                        <div style="text-align: center; margin-top: 10px;">
-                            <button id="expandConverter" 
-                                    style="background: rgba(255,107,107,0.2); color: #ff6b6b; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.9em;"
-                                    onclick="toggleConverterSize()">
-                                🔄 Expand Converter
-                            </button>
-                        </div>
-                        
-                        <script>
-                            function toggleConverterSize() {
-                                const iframe = document.getElementById('ezgif-widget');
-                                const button = document.getElementById('expandConverter');
-                                
-                                if (iframe.style.height === '350px') {
-                                    iframe.style.height = '600px';
-                                    button.textContent = '📏 Compact View';
-                                } else {
-                                    iframe.style.height = '350px';
-                                    button.textContent = '🔄 Expand Converter';
-                                }
-                            }
-                        </script>
-                        
-                        <div style="color: rgba(255,255,255,0.7); font-size: 0.9em; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
-                            <strong>✨ Perfect Workflow:</strong><br>
-                            1️⃣ Download WebM from left tool<br>
-                            2️⃣ Drop WebM into EzGIF converter above<br>
-                            3️⃣ Adjust settings if needed → Convert → Download GIF<br>
-                            <em>Free, reliable GIF conversion embedded right here!</em>
-                        </div>
-                        
-                        <!-- Fallback Links if Iframe Doesn't Work -->
-                        <div style="margin-top: 15px; padding: 10px; background: rgba(255,107,107,0.1); border-radius: 5px;">
-                            <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 8px;">🔄 Converter not loading? Use direct links:</div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <a href="https://ezgif.com/video-to-gif" target="_blank" 
-                                   style="display: block; padding: 8px; background: rgba(255,107,107,0.2); color: #ff6b6b; text-decoration: none; border-radius: 5px; text-align: center; font-weight: bold; font-size: 0.9em;">
-                                    🎯 EzGIF
-                                </a>
-                                <a href="https://cloudconvert.com/webm-to-gif" target="_blank"
-                                   style="display: block; padding: 8px; background: rgba(255,107,107,0.2); color: #ff6b6b; text-decoration: none; border-radius: 5px; text-align: center; font-weight: bold; font-size: 0.9em;">
-                                    ☁️ CloudConvert
-                                </a>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <div class="workflow-note">
-                <strong>Perfect!</strong> Shows animation preview + embeds free EzGIF converter - everything in one place!
+                <strong>Professional!</strong> Uses real ffmpeg on server (just like EzGIF) to create perfect GIF files!
             </div>
         </div>
     </div>
@@ -936,11 +920,36 @@
                     // Store all frames as a data attribute for saving
                     gifImg.setAttribute('data-frames', JSON.stringify(frameDataUrls));
                     
+                    // Set up WebM download button functionality
+                    const downloadWebMBtn = document.getElementById('downloadWebMBtn');
+                    if (downloadWebMBtn) {
+                        downloadWebMBtn.onclick = () => {
+                            // Trigger download of the original WebM file from the left tool
+                            const leftTool = document.querySelector('.video-tool');
+                            const downloadBtn = leftTool.querySelector('#downloadBtn');
+                            if (downloadBtn) {
+                                // Simulate click on the left tool's download button
+                                downloadBtn.click();
+                                
+                                // Show success message
+                                downloadWebMBtn.textContent = '✅ WebM Downloaded!';
+                                downloadWebMBtn.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+                                
+                                setTimeout(() => {
+                                    downloadWebMBtn.textContent = '📥 Download WebM Animation';
+                                    downloadWebMBtn.style.background = 'linear-gradient(45deg, #ffd700, #ffed4e)';
+                                }, 3000);
+                            } else {
+                                alert('Please create a WebM file using the left tool first!');
+                            }
+                        };
+                    }
+                    
                     // Scroll to show the animated image
                     gifContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     
-                    this.updateProgress(100, 'Preview ready + EzGIF converter loaded! 🎉');
-                    console.log('Animation preview displayed with EzGIF converter');
+                    this.updateProgress(100, 'Preview ready + GIF workflow loaded! 🎉');
+                    console.log('Animation preview displayed with guided GIF workflow');
                     
                     setTimeout(() => {
                         this.hideProgress();
@@ -1315,8 +1324,12 @@
 
         // Initialize both apps when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new MagicGifCreator();      // Video to WebM tool
-            new WebMToGIFConverter();   // WebM to GIF tool
+            const leftTool = new MagicGifCreator();      // Video to WebM tool
+            const rightTool = new WebMToGIFConverter();   // WebM to GIF tool
+            
+            // Make left tool globally accessible for the right tool
+            window.MagicGifCreator = { instance: leftTool };
+            window.WebMToGIFConverter = { instance: rightTool };
         });
 
         // Make classes globally available for debugging
