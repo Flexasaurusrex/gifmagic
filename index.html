@@ -402,13 +402,13 @@
             <h2 class="tool-title">🎯 WebM to GIF</h2>
             
             <div class="ffmpeg-status" id="ffmpegStatus">
-                🔧 Loading direct GIF creation system...
+                🔧 Loading animation preview + embedded GIF converter...
             </div>
             
             <div class="magic-box gif-converter" id="gifDropZone">
                 <div class="sparkles" id="gifSparkles"></div>
                 <div class="magic-text">Drop Your WebM Here</div>
-                <div class="magic-subtitle">Creates real GIFs you can right-click and save!</div>
+                <div class="magic-subtitle">Preview animation + convert to GIF without leaving the site!</div>
                 <div class="supported-formats">
                     Accepts: <span class="format-badge">WebM</span> <span class="format-badge">MP4</span>
                 </div>
@@ -436,25 +436,45 @@
                         <option value="high">💎 High Quality (600px, 12fps)</option>
                     </select>
                 </div>
-                <button id="gifDownloadBtn" class="download-btn">🎬 Create Animation Preview ✨</button>
+                <button id="gifDownloadBtn" class="download-btn">🎬 Preview + Show GIF Converter ✨</button>
                 
-                <!-- Animated Display Area -->
+                <!-- Animated Display Area with Embedded Converter -->
                 <div id="gifDisplayContainer" style="display: none; margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                     <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;">
-                        🎉 Your animation is ready!
+                        🎉 Your animation preview is ready!
                     </div>
-                    <img id="createdGif" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);" alt="Created Animation">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9em; margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
-                        <strong>📱 For Real GIF Files:</strong><br>
-                        • Use screen recording on this animation<br>
-                        • Or try CloudConvert.com → Upload WebM → Convert to GIF<br>
-                        • This method bypasses all browser GIF creation issues!
+                    <img id="createdGif" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 20px;" alt="Created Animation">
+                    
+                    <!-- CloudConvert Embedded Widget -->
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; margin-top: 20px;">
+                        <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;">
+                            🎯 Convert Your WebM to Perfect GIF (Professional Quality)
+                        </div>
+                        <div style="color: rgba(255,255,255,0.9); margin-bottom: 15px;">
+                            Drop your WebM file from the left tool into the converter below:
+                        </div>
+                        
+                        <!-- CloudConvert Iframe Widget -->
+                        <iframe 
+                            id="cloudconvert-widget"
+                            src="https://cloudconvert.com/webm-to-gif?embed=true&input=upload&output=download&inputformat=webm&outputformat=gif"
+                            style="width: 100%; height: 400px; border: none; border-radius: 10px; background: white;"
+                            title="WebM to GIF Converter">
+                        </iframe>
+                        
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.9em; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                            <strong>✨ Perfect Workflow:</strong><br>
+                            1️⃣ Download WebM from left tool<br>
+                            2️⃣ Drop WebM into converter above<br>
+                            3️⃣ Download perfect GIF for social media!<br>
+                            <em>Professional quality conversion, all without leaving this page!</em>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="workflow-note">
-                <strong>Smart Approach!</strong> Creates smooth animations + gives you proven methods to get real GIF files that actually work!
+                <strong>Perfect!</strong> Shows animation preview + embeds professional WebM→GIF converter - everything happens on this page!
             </div>
         </div>
     </div>
@@ -570,27 +590,23 @@
                 
                 this.initEventListeners();
                 this.createSparkles();
-                this.initGifConverter();
+                this.initPreviewConverter();
             }
 
-            async initGifConverter() {
+            async initPreviewConverter() {
                 try {
-                    this.ffmpegStatus.textContent = '🔧 Initializing direct GIF converter...';
+                    this.ffmpegStatus.textContent = '🔧 Initializing animation preview + embedded converter...';
                     
-                    // Check if gif.js loaded
-                    if (typeof GIF === 'undefined') {
-                        throw new Error('GIF.js library failed to load');
-                    }
-                    
+                    // No external libraries needed - just animation
                     this.ffmpegLoaded = true;
-                    this.ffmpegStatus.textContent = '✅ Direct GIF converter ready! Drop WebM files to create real GIF files.';
+                    this.ffmpegStatus.textContent = '✅ Animation preview + embedded GIF converter ready!';
                     this.ffmpegStatus.style.background = 'rgba(34, 197, 94, 0.1)';
                     this.ffmpegStatus.style.borderColor = 'rgba(34, 197, 94, 0.3)';
                     this.ffmpegStatus.style.color = '#22c55e';
                     
                 } catch (error) {
-                    console.error('GIF converter initialization failed:', error);
-                    this.ffmpegStatus.textContent = `❌ GIF converter failed: ${error.message}`;
+                    console.error('Preview converter initialization failed:', error);
+                    this.ffmpegStatus.textContent = `❌ Preview converter failed: ${error.message}`;
                     this.ffmpegStatus.style.background = 'rgba(239, 68, 68, 0.1)';
                     this.ffmpegStatus.style.borderColor = 'rgba(239, 68, 68, 0.3)';
                     this.ffmpegStatus.style.color = '#ef4444';
@@ -797,12 +813,12 @@
                 }
 
                 if (!this.ffmpegLoaded) {
-                    alert('GIF converter is not ready yet. Please wait for it to load.');
+                    alert('Preview converter is not ready yet. Please wait for it to load.');
                     return;
                 }
 
                 this.showProgress();
-                this.updateProgress(0, 'Starting animated image creation...');
+                this.updateProgress(0, 'Starting animation preview...');
 
                 try {
                     // Create an animated canvas element that cycles through frames
@@ -883,8 +899,8 @@
                     // Scroll to show the animated image
                     gifContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     
-                    this.updateProgress(100, 'Animated image ready! Right-click to save! 🎉');
-                    console.log('Animated image displayed with', frameDataUrls.length, 'frames');
+                    this.updateProgress(100, 'Preview ready + GIF converter loaded! 🎉');
+                    console.log('Animation preview displayed with embedded converter');
                     
                     setTimeout(() => {
                         this.hideProgress();
