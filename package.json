@@ -1,0 +1,24 @@
+{
+  "name": "magic-gif-creator",
+  "version": "1.0.0",
+  "description": "Professional WebM to GIF conversion with real ffmpeg",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Static site - no build needed'",
+    "start": "echo 'Deployed to Vercel'"
+  },
+  "keywords": [
+    "gif",
+    "webm",
+    "video",
+    "conversion",
+    "ffmpeg",
+    "vercel"
+  ],
+  "author": "Magic GIF Creator",
+  "license": "MIT",
+  "dependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
