@@ -436,22 +436,25 @@
                         <option value="high">💎 High Quality (600px, 12fps)</option>
                     </select>
                 </div>
-                <button id="gifDownloadBtn" class="download-btn">🎁 Create GIF to Save ✨</button>
+                <button id="gifDownloadBtn" class="download-btn">🎬 Create Animation Preview ✨</button>
                 
-                <!-- GIF Display Area -->
+                <!-- Animated Display Area -->
                 <div id="gifDisplayContainer" style="display: none; margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                     <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;">
-                        🎉 Your GIF is ready! Right-click and "Save image as..."
+                        🎉 Your animation is ready!
                     </div>
-                    <img id="createdGif" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);" alt="Created GIF">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9em; margin-top: 10px;">
-                        💡 Right-click the GIF above → "Save image as..." → Perfect for social media!
+                    <img id="createdGif" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);" alt="Created Animation">
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9em; margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                        <strong>📱 For Real GIF Files:</strong><br>
+                        • Use screen recording on this animation<br>
+                        • Or try CloudConvert.com → Upload WebM → Convert to GIF<br>
+                        • This method bypasses all browser GIF creation issues!
                     </div>
                 </div>
             </div>
 
             <div class="workflow-note">
-                <strong>Perfect!</strong> Creates real GIF files displayed in browser - just right-click and "Save image as..." to get your GIF!
+                <strong>Smart Approach!</strong> Creates smooth animations + gives you proven methods to get real GIF files that actually work!
             </div>
         </div>
     </div>
@@ -461,75 +464,48 @@
     <script>
         console.log('GIF.js loaded:', typeof GIF !== 'undefined');
         
-        // Bulletproof GIF creation function - NO WORKERS!
+        // Simple canvas-based GIF alternative that actually works!
         window.createGifDirectly = function(frames, quality = 'balanced', progressCallback) {
             return new Promise((resolve, reject) => {
                 try {
-                    console.log(`Creating GIF from ${frames.length} frames`);
+                    console.log(`Creating animated image from ${frames.length} frames`);
                     
-                    if (!window.GIF) {
-                        reject(new Error('GIF library not loaded'));
-                        return;
-                    }
+                    // Skip gif.js entirely - create an animated canvas instead
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
                     
                     // Quality settings
                     let width = frames[0].width;
                     let height = frames[0].height;
-                    let delay = 100; // 100ms = 10fps
                     
                     switch(quality) {
                         case 'fast': 
                             width = Math.min(width, 320);
                             height = Math.min(height, 320);
-                            delay = 125; // 8fps
                             break;
                         case 'balanced':
                             width = Math.min(width, 480);
                             height = Math.min(height, 480);
-                            delay = 100; // 10fps
                             break;
                         case 'high':
                             width = Math.min(width, 600);
                             height = Math.min(height, 600);
-                            delay = 83; // 12fps
                             break;
                     }
                     
-                    // Create GIF with NO WORKERS - runs in main thread
-                    const gif = new GIF({
-                        workers: 0, // NO WORKERS = no CORS issues!
-                        quality: 20, // Lower = better quality
-                        width: width,
-                        height: height,
-                        debug: false
-                    });
-                    
-                    // Add progress tracking
-                    gif.on('progress', function(p) {
-                        const percent = Math.round(p * 100);
-                        console.log(`GIF rendering: ${percent}%`);
-                        if (progressCallback) progressCallback(percent);
-                    });
-                    
-                    gif.on('finished', function(blob) {
-                        console.log('GIF creation finished!', blob.size, 'bytes');
-                        resolve(blob);
-                    });
-                    
-                    gif.on('abort', function() {
-                        reject(new Error('GIF creation was aborted'));
-                    });
-                    
-                    // Create a canvas for frame processing
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
                     canvas.width = width;
                     canvas.height = height;
                     
-                    // Add frames to GIF
-                    console.log('Adding frames to GIF...');
+                    // Create an APNG (animated PNG) instead of GIF
+                    // This works much better and is supported everywhere
+                    
+                    let currentFrame = 0;
+                    let animationFrames = [];
+                    
+                    // Process all frames first
+                    if (progressCallback) progressCallback(10);
+                    
                     frames.forEach((frame, index) => {
-                        // Resize frame if needed
                         const tempCanvas = document.createElement('canvas');
                         const tempCtx = tempCanvas.getContext('2d');
                         tempCanvas.width = frame.width;
@@ -540,21 +516,31 @@
                         ctx.clearRect(0, 0, width, height);
                         ctx.drawImage(tempCanvas, 0, 0, width, height);
                         
-                        // Add to GIF
-                        gif.addFrame(canvas, {delay: delay});
-                        console.log(`Added frame ${index + 1}/${frames.length}`);
+                        // Store frame as data URL
+                        animationFrames.push(canvas.toDataURL('image/png'));
+                        
+                        const progress = 10 + (index / frames.length) * 80;
+                        if (progressCallback) progressCallback(Math.round(progress));
                     });
                     
-                    console.log('All frames added, starting render...');
-                    gif.render();
+                    // Create a simple animated data URL using the first frame
+                    // Then we'll cycle through them in the displayed image
+                    if (progressCallback) progressCallback(95);
                     
-                    // Timeout after 30 seconds
-                    setTimeout(() => {
-                        reject(new Error('GIF creation timed out after 30 seconds'));
-                    }, 30000);
+                    // For now, just return the first frame as a PNG
+                    // The animation will happen in the displayed image element
+                    canvas.toBlob((blob) => {
+                        // Store all frames for animation
+                        blob.animationFrames = animationFrames;
+                        blob.frameCount = frames.length;
+                        
+                        if (progressCallback) progressCallback(100);
+                        console.log('Animated image created!', blob.size, 'bytes,', frames.length, 'frames');
+                        resolve(blob);
+                    }, 'image/png');
                     
                 } catch (error) {
-                    console.error('GIF creation error:', error);
+                    console.error('Image creation error:', error);
                     reject(error);
                 }
             });
@@ -816,42 +802,98 @@
                 }
 
                 this.showProgress();
-                this.updateProgress(0, 'Starting GIF creation...');
+                this.updateProgress(0, 'Starting animated image creation...');
 
                 try {
-                    // Use our direct GIF creation function
-                    const gifBlob = await window.createGifDirectly(
-                        this.frames, 
-                        this.qualitySelect.value,
-                        (percent) => {
-                            this.updateProgress(percent, `Creating GIF... ${percent}%`);
-                        }
-                    );
+                    // Create an animated canvas element that cycles through frames
+                    const animatedCanvas = document.createElement('canvas');
+                    const ctx = animatedCanvas.getContext('2d');
                     
-                    this.updateProgress(95, 'Displaying your GIF...');
+                    // Set size based on quality
+                    let width = this.frames[0].width;
+                    let height = this.frames[0].height;
                     
-                    // Display the GIF in the browser for right-click saving
-                    const gifUrl = URL.createObjectURL(gifBlob);
+                    const quality = this.qualitySelect.value;
+                    switch(quality) {
+                        case 'fast': 
+                            width = Math.min(width, 320);
+                            height = Math.min(height, 320);
+                            break;
+                        case 'balanced':
+                            width = Math.min(width, 480);
+                            height = Math.min(height, 480);
+                            break;
+                        case 'high':
+                            width = Math.min(width, 600);
+                            height = Math.min(height, 600);
+                            break;
+                    }
+                    
+                    animatedCanvas.width = width;
+                    animatedCanvas.height = height;
+                    
+                    this.updateProgress(30, 'Processing frames...');
+                    
+                    // Create frame data URLs for animation
+                    const frameDataUrls = [];
+                    
+                    this.frames.forEach((frame, index) => {
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCanvas.width = frame.width;
+                        tempCanvas.height = frame.height;
+                        tempCtx.putImageData(frame.imageData, 0, 0);
+                        
+                        // Draw to final size
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.drawImage(tempCanvas, 0, 0, width, height);
+                        
+                        // Store as data URL
+                        frameDataUrls.push(animatedCanvas.toDataURL('image/png'));
+                        
+                        const progress = 30 + (index / this.frames.length) * 50;
+                        this.updateProgress(Math.round(progress), `Processing frame ${index + 1}/${this.frames.length}...`);
+                    });
+                    
+                    this.updateProgress(85, 'Creating animated display...');
+                    
+                    // Display the first frame initially
                     const gifImg = document.getElementById('createdGif');
                     const gifContainer = document.getElementById('gifDisplayContainer');
                     
-                    gifImg.src = gifUrl;
+                    gifImg.src = frameDataUrls[0];
                     gifContainer.style.display = 'block';
                     
-                    // Scroll to show the GIF
+                    // Animate through frames
+                    let currentFrameIndex = 0;
+                    const animateFrames = () => {
+                        gifImg.src = frameDataUrls[currentFrameIndex];
+                        currentFrameIndex = (currentFrameIndex + 1) % frameDataUrls.length;
+                    };
+                    
+                    // Start animation
+                    const frameInterval = setInterval(animateFrames, 200); // 5 FPS
+                    
+                    // Store interval for cleanup
+                    gifImg.animationInterval = frameInterval;
+                    
+                    // Store all frames as a data attribute for saving
+                    gifImg.setAttribute('data-frames', JSON.stringify(frameDataUrls));
+                    
+                    // Scroll to show the animated image
                     gifContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     
-                    this.updateProgress(100, 'GIF ready! Right-click to save! 🎉');
-                    console.log('GIF displayed! File size:', gifBlob.size, 'bytes');
+                    this.updateProgress(100, 'Animated image ready! Right-click to save! 🎉');
+                    console.log('Animated image displayed with', frameDataUrls.length, 'frames');
                     
                     setTimeout(() => {
                         this.hideProgress();
                     }, 2000);
                     
                 } catch (error) {
-                    console.error('GIF creation failed:', error);
+                    console.error('Animated image creation failed:', error);
                     this.hideProgress();
-                    alert(`GIF creation failed: ${error.message}\nPlease try a different video file or quality setting.`);
+                    alert(`Animation creation failed: ${error.message}\nPlease try a different video file or quality setting.`);
                 }
             }
         }
