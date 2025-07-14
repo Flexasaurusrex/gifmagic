@@ -1,9 +1,4 @@
 {
   "name": "magic-gif-creator",
-  "version": "1.0.0",
-  "description": "Professional WebM to GIF conversion with real ffmpeg",
-  "main": "index.html",
-  "engines": {
-    "node": "18.x"
-  }
+  "version": "1.0.0"
 }
