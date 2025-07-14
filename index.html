@@ -408,7 +408,7 @@
             <div class="magic-box gif-converter" id="gifDropZone">
                 <div class="sparkles" id="gifSparkles"></div>
                 <div class="magic-text">Drop Your WebM Here</div>
-                <div class="magic-subtitle">Convert to REAL .gif files directly on-site!</div>
+                <div class="magic-subtitle">Creates real GIFs you can right-click and save!</div>
                 <div class="supported-formats">
                     Accepts: <span class="format-badge">WebM</span> <span class="format-badge">MP4</span>
                 </div>
@@ -436,11 +436,22 @@
                         <option value="high">💎 High Quality (600px, 12fps)</option>
                     </select>
                 </div>
-                <button id="gifDownloadBtn" class="download-btn">🎁 Download Real GIF File ✨</button>
+                <button id="gifDownloadBtn" class="download-btn">🎁 Create GIF to Save ✨</button>
+                
+                <!-- GIF Display Area -->
+                <div id="gifDisplayContainer" style="display: none; margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                    <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 15px; font-size: 1.1em;">
+                        🎉 Your GIF is ready! Right-click and "Save image as..."
+                    </div>
+                    <img id="createdGif" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);" alt="Created GIF">
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9em; margin-top: 10px;">
+                        💡 Right-click the GIF above → "Save image as..." → Perfect for social media!
+                    </div>
+                </div>
             </div>
 
             <div class="workflow-note">
-                <strong>Perfect!</strong> This creates REAL .gif files directly on your site using gif.js - no external services needed!
+                <strong>Perfect!</strong> Creates real GIF files displayed in browser - just right-click and "Save image as..." to get your GIF!
             </div>
         </div>
     </div>
@@ -551,7 +562,6 @@
         };
         
         console.log('Direct GIF creator loaded successfully');
-    </script>
 
         class WebMToGIFConverter {
             constructor() {
@@ -571,15 +581,14 @@
                 this.frames = [];
                 this.isAnimating = false;
                 this.currentFrame = 0;
-                this.ffmpeg = null;
                 this.ffmpegLoaded = false;
                 
                 this.initEventListeners();
                 this.createSparkles();
-                this.initFFmpeg();
+                this.initGifConverter();
             }
 
-            async initFFmpeg() {
+            async initGifConverter() {
                 try {
                     this.ffmpegStatus.textContent = '🔧 Initializing direct GIF converter...';
                     
@@ -670,7 +679,7 @@
                 }
 
                 if (!this.ffmpegLoaded) {
-                    alert('ffmpeg.wasm is still loading. Please wait a moment and try again.');
+                    alert('GIF converter is still loading. Please wait a moment and try again.');
                     return;
                 }
 
@@ -697,9 +706,6 @@
 
                     // Extract frames for preview
                     await this.extractFramesForGif(video);
-                    
-                    // Store the original file for ffmpeg processing
-                    this.originalVideoFile = videoFile;
                     
                     URL.revokeObjectURL(video.src);
                     this.startGifPreview();
@@ -823,21 +829,21 @@
                         }
                     );
                     
-                    this.updateProgress(95, 'Finalizing GIF download...');
+                    this.updateProgress(95, 'Displaying your GIF...');
                     
-                    // Download the actual GIF file
-                    const url = URL.createObjectURL(gifBlob);
-                    const link = document.createElement('a');
-                    link.download = 'magic-animation.gif';
-                    link.href = url;
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
+                    // Display the GIF in the browser for right-click saving
+                    const gifUrl = URL.createObjectURL(gifBlob);
+                    const gifImg = document.getElementById('createdGif');
+                    const gifContainer = document.getElementById('gifDisplayContainer');
                     
-                    this.updateProgress(100, 'REAL GIF created and downloaded! 🎉');
-                    console.log('GIF download complete! File size:', gifBlob.size, 'bytes');
+                    gifImg.src = gifUrl;
+                    gifContainer.style.display = 'block';
+                    
+                    // Scroll to show the GIF
+                    gifContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    this.updateProgress(100, 'GIF ready! Right-click to save! 🎉');
+                    console.log('GIF displayed! File size:', gifBlob.size, 'bytes');
                     
                     setTimeout(() => {
                         this.hideProgress();
